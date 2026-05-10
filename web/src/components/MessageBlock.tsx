@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { diffLines, type Change } from "diff";
 import type { TimelineItem } from "../api/types";
 import { Markdown } from "./Markdown";
 import { useT } from "../i18n";
@@ -121,6 +122,14 @@ function ToolUseCard({
   // TodoWrite gets its own visual: don't dump JSON, render the checklist.
   if (item.name === "TodoWrite") {
     return <TodoListCard item={item} />;
+  }
+
+  // Edit / MultiEdit: render before/after diff instead of raw JSON.
+  if (
+    (item.name === "Edit" || item.name === "MultiEdit") &&
+    item.input != null
+  ) {
+    return <EditDiffCard item={item} onOpenFile={onOpenFile} />;
   }
 
   const inputText = item.input != null
@@ -345,6 +354,202 @@ function ToolResultCard({
       </pre>
     </div>
   );
+}
+
+// Edit / MultiEdit get a unified diff render: each (old_string, new_string)
+// pair is fed to diffLines() and printed with -/+/space prefixes plus a
+// truncated context window so big files don't drown the chat.
+interface EditEntry {
+  old: string;
+  next: string;
+}
+
+function parseEditEntries(input: unknown): EditEntry[] {
+  if (!input || typeof input !== "object") return [];
+  const r = input as Record<string, unknown>;
+  // Single-edit Edit tool
+  if (typeof r.old_string === "string" && typeof r.new_string === "string") {
+    return [{ old: r.old_string, next: r.new_string }];
+  }
+  // MultiEdit
+  const edits = r.edits;
+  if (Array.isArray(edits)) {
+    const out: EditEntry[] = [];
+    for (const e of edits) {
+      if (!e || typeof e !== "object") continue;
+      const ee = e as Record<string, unknown>;
+      if (typeof ee.old_string === "string" && typeof ee.new_string === "string") {
+        out.push({ old: ee.old_string, next: ee.new_string });
+      }
+    }
+    return out;
+  }
+  return [];
+}
+
+function EditDiffCard({
+  item,
+  onOpenFile,
+}: {
+  item: Extract<TimelineItem, { kind: "tool_use" }>;
+  onOpenFile?: (path: string) => void;
+}) {
+  const { t } = useT();
+  const inputObj = (item.input as Record<string, unknown>) ?? null;
+  const filePath =
+    inputObj && typeof inputObj.file_path === "string"
+      ? (inputObj.file_path as string)
+      : null;
+  const entries = parseEditEntries(item.input);
+  const total = entries.reduce(
+    (acc, e) => {
+      const ch = diffLines(e.old, e.next);
+      ch.forEach((c) => {
+        const lines = countLines(c.value);
+        if (c.added) acc.add += lines;
+        else if (c.removed) acc.del += lines;
+      });
+      return acc;
+    },
+    { add: 0, del: 0 },
+  );
+
+  return (
+    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+      <div className="flex items-center gap-2 text-amber-300">
+        <span className="text-xs uppercase tracking-wider">{item.name}</span>
+        {!item.done && (
+          <span className="text-amber-400/70 text-xs">{t("block.toolStreaming")}</span>
+        )}
+        <span className="text-[11px] text-emerald-300">+{total.add}</span>
+        <span className="text-[11px] text-red-300">−{total.del}</span>
+        {filePath && (
+          <button
+            type="button"
+            onClick={() => onOpenFile?.(filePath)}
+            className="ml-auto truncate font-mono text-xs text-amber-200 underline hover:text-amber-100"
+            title={filePath}
+            disabled={!onOpenFile}
+          >
+            {filePath.length > 50 ? "…" + filePath.slice(-48) : filePath}
+          </button>
+        )}
+      </div>
+      {entries.length === 0 ? (
+        <pre className="mt-1 overflow-x-auto text-xs text-amber-100/80">
+          {item.input != null ? JSON.stringify(item.input, null, 2) : item.partial ?? "…"}
+        </pre>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {entries.map((e, i) => (
+            <DiffBlock key={i} oldText={e.old} newText={e.next} index={i} total={entries.length} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DiffBlock({
+  oldText,
+  newText,
+  index,
+  total,
+}: {
+  oldText: string;
+  newText: string;
+  index: number;
+  total: number;
+}) {
+  const changes = diffLines(oldText, newText);
+  return (
+    <div className="overflow-hidden rounded-md border border-white/5 bg-black/30">
+      {total > 1 && (
+        <div className="border-b border-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/30">
+          edit {index + 1}/{total}
+        </div>
+      )}
+      <pre className="m-0 overflow-x-auto px-2 py-1 text-[12px] leading-snug">
+        {changes.map((c, ci) => (
+          <DiffChunk key={ci} change={c} />
+        ))}
+      </pre>
+    </div>
+  );
+}
+
+function DiffChunk({ change }: { change: Change }) {
+  // For unchanged context blocks larger than a few lines we collapse the
+  // middle so big files don't dominate the chat.
+  const lines = change.value.split("\n");
+  // diffLines tends to leave a trailing empty after a final newline; drop it.
+  if (lines.length && lines[lines.length - 1] === "") lines.pop();
+
+  if (!change.added && !change.removed) {
+    if (lines.length > 6) {
+      const head = lines.slice(0, 2);
+      const tail = lines.slice(-2);
+      return (
+        <>
+          {head.map((l, i) => (
+            <DiffLine key={`h${i}`} kind="ctx" text={l} />
+          ))}
+          <div className="text-[11px] text-white/30 italic px-3">
+            … {lines.length - 4} unchanged lines …
+          </div>
+          {tail.map((l, i) => (
+            <DiffLine key={`t${i}`} kind="ctx" text={l} />
+          ))}
+        </>
+      );
+    }
+    return (
+      <>
+        {lines.map((l, i) => (
+          <DiffLine key={i} kind="ctx" text={l} />
+        ))}
+      </>
+    );
+  }
+
+  const kind: "add" | "del" = change.added ? "add" : "del";
+  return (
+    <>
+      {lines.map((l, i) => (
+        <DiffLine key={i} kind={kind} text={l} />
+      ))}
+    </>
+  );
+}
+
+function DiffLine({
+  kind,
+  text,
+}: {
+  kind: "add" | "del" | "ctx";
+  text: string;
+}) {
+  const cls =
+    kind === "add"
+      ? "bg-emerald-500/10 text-emerald-200"
+      : kind === "del"
+        ? "bg-red-500/10 text-red-200"
+        : "text-white/55";
+  const sigil = kind === "add" ? "+" : kind === "del" ? "−" : " ";
+  return (
+    <div className={`whitespace-pre-wrap break-words px-1 ${cls}`}>
+      <span className="select-none mr-2 opacity-70">{sigil}</span>
+      <span>{text || " "}</span>
+    </div>
+  );
+}
+
+function countLines(s: string): number {
+  if (!s) return 0;
+  // diff library segments are line-aligned; count newlines, but a non-newline-
+  // terminated trailing chunk still counts as one line.
+  const n = (s.match(/\n/g) ?? []).length;
+  return s.endsWith("\n") ? n : n + 1;
 }
 
 // AskUserQuestion is special: it's a tool that needs answers, not just
