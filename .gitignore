@@ -1,0 +1,31 @@
+# API key — generated at first run, must NEVER be committed
+.api-key
+
+# Local config
+config.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Web build output
+web/node_modules/
+web/dist/
+web/.vite/
+
+# Workspaces (default Claude working dir under the project)
+workspaces/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

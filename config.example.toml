@@ -1,0 +1,19 @@
+# mobile-cc configuration. Copy to config.toml and edit.
+
+# HTTP server
+host = "0.0.0.0"
+port = 8788
+
+# Path to claude binary (auto-detected via $PATH if omitted)
+# claude_bin = "/usr/local/bin/claude"
+
+# Working directories the user can pick from when starting a new session.
+# Each entry has a display name + filesystem path. Claude will be spawned with
+# cwd set to the chosen path, and @-completion globs files under it.
+[[allowed_dirs]]
+name = "mobile-cc 自己"
+path = "/root/workspace/claudecode/mobile-cc/workspaces"
+
+[[allowed_dirs]]
+name = "claudecode 工作区"
+path = "/root/workspace/claudecode"
