@@ -17,6 +17,8 @@ class Config:
     host: str
     port: int
     claude_bin: str
+    ssl_certfile: str | None
+    ssl_keyfile: str | None
     allowed_dirs: tuple[AllowedDir, ...]
     project_root: Path
 
@@ -42,6 +44,10 @@ def load_config(project_root: Path) -> Config:
     host = str(raw.get("host", "0.0.0.0"))
     port = int(raw.get("port", 8788))
     claude_bin = str(raw.get("claude_bin") or shutil.which("claude") or "claude")
+    ssl_certfile = raw.get("ssl_certfile")
+    ssl_keyfile = raw.get("ssl_keyfile")
+    ssl_certfile = str(ssl_certfile) if ssl_certfile else None
+    ssl_keyfile = str(ssl_keyfile) if ssl_keyfile else None
 
     dirs_raw = raw.get("allowed_dirs", [])
     dirs: list[AllowedDir] = []
@@ -59,6 +65,8 @@ def load_config(project_root: Path) -> Config:
         host=host,
         port=port,
         claude_bin=claude_bin,
+        ssl_certfile=ssl_certfile,
+        ssl_keyfile=ssl_keyfile,
         allowed_dirs=tuple(dirs),
         project_root=project_root,
     )
