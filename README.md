@@ -73,7 +73,7 @@ sudo systemctl reload caddy
 
 ### 备选：mobile-cc 自带 TLS（certbot 拿证书）
 
-适合不想装 Caddy 的场景：
+适合不想装 Caddy 的场景。用 8443 避免 root（443 需要 root 或 `setcap CAP_NET_BIND_SERVICE`）：
 
 ```bash
 # 1) 用 certbot 拿证书（DNS A 记录指过来，80 端口空闲）
@@ -83,10 +83,10 @@ sudo certbot certonly --standalone -d cc.example.com
 uv run python -m mobile_cc \
   --ssl-certfile /etc/letsencrypt/live/cc.example.com/fullchain.pem \
   --ssl-keyfile  /etc/letsencrypt/live/cc.example.com/privkey.pem \
-  --port 443
+  --port 8443
 ```
 
-注意 `--port 443` 要 root 或者给二进制加 `CAP_NET_BIND_SERVICE`，否则改成 8443 这种高端口。certbot 续期记得在 hook 里 `systemctl restart mobile-cc` 一下。
+手机访问 `https://cc.example.com:8443`。certbot 续期记得在 deploy hook 里 `systemctl restart mobile-cc` 一下，否则新证书要等下次重启才生效。
 
 ### 临时 / 内网：自签证书
 
