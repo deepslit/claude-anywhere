@@ -50,9 +50,58 @@ path = "/another/path"
 - 默认 `bypassPermissions` 模式更激进，所有工具直接放行不弹卡片。
 - 明文 HTTP 上传 `X-API-Key` header → 抓包就拿到 key。
 
-部署假设：**单用户、自己的服务器、自己对自己负责**。下面三条 recipe 任选其一，重点是让流量走 HTTPS、key 别裸奔。
+部署假设：**单用户、自己的服务器、自己对自己负责**。先判断有没有公网 IP，再选 recipe：
 
-### 推荐：Caddy 反向代理（自动 Let's Encrypt）
+| 场景 | 推荐 |
+|---|---|
+| **没有公网 IP**（家用 / CGNAT） | Tailscale（默认）或 Cloudflare Tunnel |
+| 有公网 IP 的服务器 | Caddy 反代自动 HTTPS（推荐）或 mobile-cc 直接挂证书 |
+| 临时 / 内网调试 | 自签证书 |
+
+### 没有公网 IP → Tailscale（最推荐）
+
+绝大多数家庭宽带和国内手机网络拿不到真公网 IPv4，路由器端口转发不通。[Tailscale](https://tailscale.com) 是 WireGuard mesh：你的设备组成一个加密私网，外人看不见，自己之间互联。免费个人版 100 台设备。
+
+```bash
+# 1) 服务器（运行 mobile-cc 的电脑）装 tailscale 并登录
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+
+# 2) 手机：App Store / Google Play 装 Tailscale，用同一个账号登录
+
+# 3) 看一眼 tailnet 内的设备 IP
+tailscale ip -4    # 比如 100.x.y.z
+# 或者用 MagicDNS 名字：cc-server（tailscale status 看）
+
+# 4) 启动 mobile-cc，bind 0.0.0.0（让 tailnet 上的手机能访问到）
+uv run python -m mobile_cc --port 8788
+```
+
+手机浏览器开 `http://100.x.y.z:8788`（或 `http://cc-server:8788`），输 API key。
+
+**注意**：Tailscale 内部已经用 WireGuard 加密了，所以**不需要再上 TLS**，裸 HTTP 没问题。比拿 Let's Encrypt 简单太多。
+
+### 没有公网 IP → Cloudflare Tunnel
+
+如果不想装 app、想直接给个 HTTPS URL（比如分享给自己另一台设备），用 [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)：
+
+```bash
+# 1) 装 cloudflared（macOS: brew install cloudflared；Linux: 官方 .deb/.rpm）
+
+# 2) 一次性 quick tunnel（随机域名）
+cloudflared tunnel --url http://127.0.0.1:8788
+# 终端打出 https://random-words-xxxx.trycloudflare.com，手机直接用这个 URL
+
+# 3)（可选）绑自有域名 + 持久化：
+cloudflared tunnel login
+cloudflared tunnel create mobile-cc
+cloudflared tunnel route dns mobile-cc cc.example.com
+cloudflared tunnel run mobile-cc
+```
+
+URL 是 HTTPS，流量从你的电脑出站连 Cloudflare 边缘，没有公网 IP / 端口转发都行。Cloudflare 看得到你的请求元数据但看不到 API key（如果你启用了 Cloudflare Access 还能加一层 SSO）。免费档够用。
+
+### 有公网 IP → Caddy 反向代理（自动 Let's Encrypt）
 
 ```bash
 # 1) 让 mobile-cc 只监听 localhost（被 Caddy 代）
@@ -71,7 +120,7 @@ sudo systemctl reload caddy
 
 手机直接访问 `https://cc.example.com`。Caddy 自动续期，不用管。
 
-### 备选：mobile-cc 自带 TLS（certbot 拿证书）
+### 有公网 IP → mobile-cc 自带 TLS（certbot 拿证书）
 
 适合不想装 Caddy 的场景。用 8443 避免 root（443 需要 root 或 `setcap CAP_NET_BIND_SERVICE`）：
 
