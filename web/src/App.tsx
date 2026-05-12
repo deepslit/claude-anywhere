@@ -560,7 +560,7 @@ function Chat({ apiKey, onLogout }: ChatProps) {
         >
           <button
             type="button"
-            className="rounded-md p-1.5 text-white/70 hover:bg-white/5 md:hidden"
+            className="-ml-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-lg text-white/70 hover:bg-white/5 md:hidden"
             onClick={() => setDrawerOpen(true)}
             aria-label="打开侧边栏"
           >
@@ -568,18 +568,18 @@ function Chat({ apiKey, onLogout }: ChatProps) {
           </button>
           <div className="min-w-0 truncate">
             {currentId ? (
-              <span className="text-white/80">
-                <span className="text-white/40">{currentDirName ?? ""} · </span>
+              <span className="text-white/90">
+                <span className="text-white/60">{currentDirName ?? ""} · </span>
                 <span className="font-mono text-xs">{currentId.slice(0, 8)}</span>
               </span>
             ) : (
-              <span className="text-white/40">{t("app.noSession")}</span>
+              <span className="text-white/60">{t("app.noSession")}</span>
             )}
           </div>
         </header>
 
         {errorMsg && (
-          <div className="border-b border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-200">
+          <div className="border-b border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             {errorMsg}
           </div>
         )}
@@ -646,17 +646,17 @@ function Chat({ apiKey, onLogout }: ChatProps) {
 function EmptyState({ onNew }: { onNew: () => void }) {
   const { t } = useT();
   return (
-    <div className="flex h-full items-center justify-center text-center text-white/50">
+    <div className="flex h-full items-center justify-center text-center text-white/70">
       <div>
         <div className="text-base">{t("app.empty.title")}</div>
         <button
           type="button"
-          className="mt-3 rounded-md bg-indigo-500 px-4 py-2 text-sm text-white hover:bg-indigo-400"
+          className="mt-3 inline-flex h-11 items-center rounded-md bg-indigo-500 px-5 text-sm font-medium text-white hover:bg-indigo-400"
           onClick={onNew}
         >
           {t("app.empty.cta")}
         </button>
-        <div className="mt-2 text-xs text-white/30">
+        <div className="mt-2 text-sm text-white/55">
           {t("app.empty.hint")}
         </div>
       </div>
@@ -710,21 +710,26 @@ function Sidebar({
               type="button"
               onClick={() => setLocale(locale === "en" ? "zh" : "en")}
               title={t("sidebar.langTitle")}
-              className="rounded-md border border-white/10 px-2 py-1 text-xs text-white/70 hover:bg-white/5"
+              className="inline-flex h-11 min-w-[44px] items-center justify-center rounded-md border border-white/10 px-3 text-sm text-white/70 hover:bg-white/5"
             >
               {t("sidebar.lang")}
             </button>
             <button
               type="button"
-              className="rounded-md bg-indigo-500 px-3 py-1 text-xs text-white hover:bg-indigo-400"
+              className="inline-flex h-11 items-center justify-center rounded-md bg-indigo-500 px-4 text-sm font-medium text-white hover:bg-indigo-400"
               onClick={onNew}
             >
               {t("sidebar.new")}
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-2 py-2">
+          <div
+            className="flex-1 overflow-y-auto overscroll-contain px-2 py-2"
+            style={{
+              paddingLeft: "max(0.5rem, env(safe-area-inset-left))",
+            }}
+          >
             {sessions.length === 0 ? (
-              <div className="px-2 py-4 text-xs text-white/30">
+              <div className="px-2 py-4 text-sm text-white/55">
                 {t("sidebar.empty")}
               </div>
             ) : (
@@ -733,20 +738,24 @@ function Sidebar({
                   type="button"
                   key={s.id}
                   onClick={() => onPick(s)}
-                  className={`mb-1 block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-white/5 ${
+                  className={`mb-1 block w-full rounded-md px-3 py-3 text-left text-sm hover:bg-white/5 ${
                     s.id === currentId ? "bg-white/[0.07]" : ""
                   }`}
                 >
-                  <div className="truncate text-white/85">{s.title}</div>
-                  <div className="mt-0.5 truncate text-xs text-white/40">
+                  <div className="truncate text-white/90">{s.title}</div>
+                  <div className="mt-0.5 truncate text-xs text-white/55">
                     {s.dir_name} · {new Date(s.mtime * 1000).toLocaleString()}
                   </div>
                 </button>
               ))
             )}
           </div>
-          <div className="border-t border-white/5 px-3 py-2 text-xs text-white/40">
-            <button type="button" onClick={onLogout} className="hover:text-white/70">
+          <div className="border-t border-white/5 px-2 py-2 text-white/60">
+            <button
+              type="button"
+              onClick={onLogout}
+              className="inline-flex h-11 items-center rounded-md px-3 text-sm hover:bg-white/5 hover:text-white/85"
+            >
               {t("sidebar.logout")}
             </button>
           </div>
@@ -798,7 +807,7 @@ function DirPicker({ dirs, onPick, onClose }: DirPickerProps) {
       >
         <div className="text-base font-semibold text-white">{t("picker.title")}</div>
 
-        <div className="mt-4 text-xs uppercase tracking-wider text-white/40">
+        <div className="mt-4 text-xs uppercase tracking-wider text-white/60">
           {t("picker.permLabel")}
         </div>
         <div className="mt-1.5 space-y-1">
@@ -807,32 +816,32 @@ function DirPicker({ dirs, onPick, onClose }: DirPickerProps) {
               type="button"
               key={p.value}
               onClick={() => setMode(p.value)}
-              className={`block w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+              className={`block w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
                 mode === p.value
                   ? "border-indigo-400/60 bg-indigo-500/10"
                   : "border-white/5 bg-black/20 hover:border-white/15"
               }`}
             >
               <div className="text-sm text-white">{t(p.labelKey)}</div>
-              <div className="mt-0.5 text-xs text-white/40">{t(p.hintKey)}</div>
+              <div className="mt-0.5 text-xs text-white/60">{t(p.hintKey)}</div>
             </button>
           ))}
         </div>
 
-        <div className="mt-4 text-xs uppercase tracking-wider text-white/40">
+        <div className="mt-4 text-xs uppercase tracking-wider text-white/60">
           {t("picker.dirLabel")}
         </div>
-        <p className="mt-0.5 text-xs text-white/40">{t("picker.dirHint")}</p>
+        <p className="mt-0.5 text-sm text-white/55">{t("picker.dirHint")}</p>
         <div className="mt-2 flex flex-col gap-1">
           {dirs.map((d) => (
             <button
               type="button"
               key={d.path}
               onClick={() => onPick(d, mode)}
-              className="rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-left hover:border-indigo-400/60 hover:bg-indigo-500/5"
+              className="rounded-lg border border-white/5 bg-black/20 px-3 py-2.5 text-left hover:border-indigo-400/60 hover:bg-indigo-500/5"
             >
               <div className="text-sm text-white">{d.name}</div>
-              <div className="mt-0.5 truncate font-mono text-xs text-white/40">
+              <div className="mt-0.5 truncate font-mono text-xs text-white/55">
                 {d.path}
               </div>
             </button>

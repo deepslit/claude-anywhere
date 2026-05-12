@@ -126,7 +126,7 @@ export function FileViewer({ apiKey, sessionId, path, onClose }: Props) {
       >
         <div className="flex items-center gap-2 border-b border-white/5 px-4 py-2.5">
           <div className="min-w-0 flex-1">
-            <div className="text-xs uppercase tracking-wider text-white/40">
+            <div className="text-xs uppercase tracking-wider text-white/60">
               {t("file.title")}
             </div>
             <div className="truncate font-mono text-sm text-white">
@@ -136,7 +136,7 @@ export function FileViewer({ apiKey, sessionId, path, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-white/10 px-3 py-1 text-xs text-white/70 hover:bg-white/5"
+            className="inline-flex h-11 shrink-0 items-center rounded-md border border-white/10 px-4 text-sm font-medium text-white/85 hover:bg-white/5"
           >
             {t("file.close")}
           </button>
@@ -147,7 +147,7 @@ export function FileViewer({ apiKey, sessionId, path, onClose }: Props) {
             <div className="px-4 py-3 text-sm text-red-300">{error}</div>
           )}
           {!error && data == null && (
-            <div className="px-4 py-3 text-sm text-white/40">
+            <div className="px-4 py-3 text-sm text-white/60">
               {t("file.loading")}
             </div>
           )}
@@ -157,7 +157,7 @@ export function FileViewer({ apiKey, sessionId, path, onClose }: Props) {
             </div>
           )}
           {data && !data.is_binary && data.content === "" && (
-            <div className="px-4 py-3 text-sm text-white/40">
+            <div className="px-4 py-3 text-sm text-white/60">
               {t("file.empty")}
             </div>
           )}
@@ -170,7 +170,7 @@ export function FileViewer({ apiKey, sessionId, path, onClose }: Props) {
                 <Markdown source={data.content} />
               </div>
             ) : (
-              <pre className="m-0 px-4 py-3 text-xs text-white/85">
+              <pre className="m-0 px-4 py-3 text-sm text-white/90">
                 <code ref={codeRef} className={`language-${data.language}`}>
                   {data.content}
                 </code>
@@ -179,7 +179,7 @@ export function FileViewer({ apiKey, sessionId, path, onClose }: Props) {
         </div>
 
         {data && (
-          <div className="border-t border-white/5 px-4 py-1.5 text-[11px] text-white/30">
+          <div className="border-t border-white/5 px-4 py-1.5 text-[11px] text-white/55">
             {data.size} bytes · {data.language}
           </div>
         )}

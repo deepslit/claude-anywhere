@@ -174,16 +174,15 @@ export function Composer({
               : t("composer.placeholder")
           }
           disabled={disabled}
-          className="max-h-40 min-h-[2.4rem] w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-base text-white placeholder-white/30 outline-none focus:border-indigo-400 disabled:opacity-50"
+          className="max-h-40 min-h-[2.4rem] w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-base text-white placeholder-white/50 outline-none focus:border-indigo-400 disabled:opacity-50"
         />
         <div className="flex items-center gap-2">
           <ModeChip mode={mode} onChange={onModeChange} disabled={disabled} />
-          <div className="ml-auto" />
           {sending ? (
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-xl bg-red-500/80 px-3 py-2 text-sm text-white hover:bg-red-500"
+              className="inline-flex h-11 shrink-0 items-center rounded-xl bg-red-500/80 px-4 text-sm font-medium text-white hover:bg-red-500"
             >
               {t("composer.stop")}
             </button>
@@ -192,7 +191,7 @@ export function Composer({
               type="button"
               onClick={onSend}
               disabled={disabled || !value.trim()}
-              className="rounded-xl bg-indigo-500 px-4 py-2 text-sm text-white hover:bg-indigo-400 disabled:opacity-40"
+              className="inline-flex h-11 shrink-0 items-center rounded-xl bg-indigo-500 px-5 text-sm font-medium text-white hover:bg-indigo-400 disabled:opacity-40"
             >
               {t("composer.send")}
             </button>
@@ -267,7 +266,7 @@ function SuggestionPopover({
               </button>
             );
           })}
-          <div className="px-3 pt-1 text-[11px] text-white/30">
+          <div className="px-3 pt-1 text-[11px] text-white/55">
             {mode === "slash" ? t("composer.suggestSlash") : t("composer.suggestFile")}
           </div>
         </div>
@@ -351,21 +350,21 @@ function ModeChip({
   };
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative min-w-0 flex-1">
       <button
         type="button"
         disabled={disabled}
         title={t("composer.modeTitle")}
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors disabled:opacity-40 ${colourFor(
+        className={`inline-flex h-11 min-w-0 max-w-full items-center gap-1.5 rounded-md border px-3 text-sm transition-colors disabled:opacity-40 ${colourFor(
           mode,
         )}`}
       >
-        <span>{t(`mode.${mode}`)}</span>
-        <span className="text-[9px] opacity-70">▾</span>
+        <span className="min-w-0 truncate">{t(`mode.${mode}`)}</span>
+        <span className="shrink-0 text-xs opacity-70">▾</span>
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 mb-1 min-w-[10rem] rounded-lg border border-white/10 bg-[#15151c] py-1 shadow-2xl">
+        <div className="absolute bottom-full left-0 mb-1 min-w-[12rem] rounded-lg border border-white/10 bg-[#15151c] py-1 shadow-2xl">
           {MODE_VALUES.map((m) => (
             <button
               type="button"
@@ -374,8 +373,8 @@ function ModeChip({
                 onChange(m);
                 setOpen(false);
               }}
-              className={`block w-full px-3 py-1.5 text-left text-xs hover:bg-white/5 ${
-                m === mode ? "text-white" : "text-white/60"
+              className={`flex min-h-[44px] w-full items-center px-3 text-left text-sm hover:bg-white/5 ${
+                m === mode ? "text-white" : "text-white/70"
               }`}
             >
               <span className="mr-2 inline-block w-3 text-center">

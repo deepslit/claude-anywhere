@@ -95,7 +95,7 @@ function Thinking({
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
       className="rounded-md border border-white/5 bg-white/[0.02] px-3 py-2 text-xs text-white/55"
     >
-      <summary className="cursor-pointer select-none text-white/40">
+      <summary className="cursor-pointer select-none text-white/60">
         {done ? t("block.thinkingDone") : t("block.thinkingActive")}
       </summary>
       <div className="prose-cc mt-2 text-white/60">
@@ -147,7 +147,7 @@ function ToolUseCard({
           <button
             type="button"
             onClick={() => onOpenFile(filePath)}
-            className="ml-auto min-w-0 truncate font-mono text-xs text-amber-200 underline hover:text-amber-100"
+            className="ml-auto min-w-0 truncate font-mono text-sm text-amber-200 underline hover:text-amber-100"
             title={filePath}
           >
             {filePath.length > 50 ? "…" + filePath.slice(-48) : filePath}
@@ -203,7 +203,7 @@ function TodoListCard({
     // Either still streaming or empty input — show a minimal placeholder
     // so the card is recognisable but not noisy.
     return (
-      <div className="text-xs text-white/40 italic">
+      <div className="text-xs text-white/60 italic">
         {t("todo.empty")}
       </div>
     );
@@ -235,7 +235,7 @@ function TodoListCard({
                   ? "mt-0.5 shrink-0 text-emerald-400"
                   : td.status === "in_progress"
                     ? "mt-0.5 shrink-0 text-amber-300"
-                    : "mt-0.5 shrink-0 text-white/30"
+                    : "mt-0.5 shrink-0 text-white/55"
               }
             >
               {td.status === "completed"
@@ -349,7 +349,7 @@ function ToolResultCard({
   return (
     <div className={`rounded-lg border ${cls} px-3 py-2 text-sm`}>
       <div className="text-xs uppercase tracking-wider opacity-70">{label}</div>
-      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-words text-xs">
+      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-words text-sm">
         {content}
       </pre>
     </div>
@@ -427,7 +427,7 @@ function EditDiffCard({
           <button
             type="button"
             onClick={() => onOpenFile?.(filePath)}
-            className="ml-auto min-w-0 truncate font-mono text-xs text-amber-200 underline hover:text-amber-100"
+            className="ml-auto min-w-0 truncate font-mono text-sm text-amber-200 underline hover:text-amber-100"
             title={filePath}
             disabled={!onOpenFile}
           >
@@ -465,7 +465,7 @@ function DiffBlock({
   return (
     <div className="overflow-hidden rounded-md border border-white/5 bg-black/30">
       {total > 1 && (
-        <div className="border-b border-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/30">
+        <div className="border-b border-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/55">
           edit {index + 1}/{total}
         </div>
       )}
@@ -494,7 +494,7 @@ function DiffChunk({ change }: { change: Change }) {
           {head.map((l, i) => (
             <DiffLine key={`h${i}`} kind="ctx" text={l} />
           ))}
-          <div className="text-[11px] text-white/30 italic px-3">
+          <div className="text-[11px] text-white/55 italic px-3">
             … {lines.length - 4} unchanged lines …
           </div>
           {tail.map((l, i) => (
@@ -655,7 +655,7 @@ function AskQuestionCard({
           <span className="ml-auto text-xs text-emerald-300">✓</span>
         )}
         {cancelled && (
-          <span className="ml-auto text-xs text-white/40">
+          <span className="ml-auto text-xs text-white/60">
             {t("ask.cancelled")}
           </span>
         )}
@@ -717,7 +717,7 @@ function AskQuestionCard({
                       value={otherText[qi]}
                       onChange={(e) => setOther(qi, e.target.value)}
                       placeholder={t("ask.otherPlaceholder")}
-                      className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-base text-white placeholder-white/30 outline-none focus:border-sky-400"
+                      className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-base text-white placeholder-white/50 outline-none focus:border-sky-400"
                     />
                   )}
                 </div>
@@ -736,14 +736,14 @@ function AskQuestionCard({
           <button
             type="button"
             onClick={submit}
-            className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-400"
+            className="rounded-md bg-sky-500 px-4 inline-flex min-h-[44px] items-center text-sm font-medium text-white hover:bg-sky-400"
           >
             {t("ask.submit")}
           </button>
           <button
             type="button"
             onClick={() => onInterrupt?.()}
-            className="rounded-md border border-white/20 px-3 py-1 text-xs font-medium text-white/70 hover:bg-white/5"
+            className="rounded-md border border-white/20 px-4 inline-flex min-h-[44px] items-center text-sm font-medium text-white/70 hover:bg-white/5"
             title={t("perm.btnInterruptTitle")}
           >
             {t("perm.btnInterrupt")}
@@ -934,7 +934,7 @@ function PermissionCard({
       )}
 
       {item.reason && decided && (
-        <div className="mt-1 text-xs text-white/40 italic">
+        <div className="mt-1 text-xs text-white/60 italic">
           {t("perm.reasonPrefix")}{item.reason}
         </div>
       )}
@@ -954,7 +954,7 @@ function PermissionCard({
                     "acceptEdits",
                   )
                 }
-                className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-400"
+                className="rounded-md bg-emerald-500 px-4 inline-flex min-h-[44px] items-center text-sm font-medium text-white hover:bg-emerald-400"
                 title={t("plan.approveAutoTitle")}
               >
                 {t("plan.approveAuto")}
@@ -970,7 +970,7 @@ function PermissionCard({
                       "Individual edits will still be reviewed by the user.",
                   )
                 }
-                className="rounded-md bg-emerald-500/30 px-3 py-1 text-xs font-medium text-emerald-100 hover:bg-emerald-500/50"
+                className="rounded-md bg-emerald-500/30 px-4 inline-flex min-h-[44px] items-center text-sm font-medium text-emerald-100 hover:bg-emerald-500/50"
                 title={t("plan.approveManualTitle")}
               >
                 {t("plan.approveManual")}
@@ -981,14 +981,14 @@ function PermissionCard({
               <button
                 type="button"
                 onClick={() => onDecide?.(item.requestId, "allow")}
-                className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-400"
+                className="rounded-md bg-emerald-500 px-4 inline-flex min-h-[44px] items-center text-sm font-medium text-white hover:bg-emerald-400"
               >
                 {allowLabel}
               </button>
               <button
                 type="button"
                 onClick={() => onDecide?.(item.requestId, "allow_always")}
-                className="rounded-md bg-emerald-500/30 px-3 py-1 text-xs font-medium text-emerald-100 hover:bg-emerald-500/50"
+                className="rounded-md bg-emerald-500/30 px-4 inline-flex min-h-[44px] items-center text-sm font-medium text-emerald-100 hover:bg-emerald-500/50"
                 title={t("perm.btnAllowAlwaysTitle", { tool: item.toolName })}
               >
                 {t("perm.btnAllowAlways", { tool: item.toolName })}
@@ -998,14 +998,14 @@ function PermissionCard({
           <button
             type="button"
             onClick={() => setRejectMode(true)}
-            className="rounded-md bg-red-500/80 px-3 py-1 text-xs font-medium text-white hover:bg-red-500"
+            className="rounded-md bg-red-500/80 px-4 inline-flex min-h-[44px] items-center text-sm font-medium text-white hover:bg-red-500"
           >
             {denyLabel}
           </button>
           <button
             type="button"
             onClick={() => onInterrupt?.()}
-            className="rounded-md border border-white/20 px-3 py-1 text-xs font-medium text-white/70 hover:bg-white/5"
+            className="rounded-md border border-white/20 px-4 inline-flex min-h-[44px] items-center text-sm font-medium text-white/70 hover:bg-white/5"
             title={t("perm.btnInterruptTitle")}
           >
             {t("perm.btnInterrupt")}
@@ -1021,7 +1021,7 @@ function PermissionCard({
             onChange={(e) => setRejectText(e.target.value)}
             rows={2}
             placeholder={t("perm.rejectPlaceholder")}
-            className="w-full resize-none rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-base text-white placeholder-white/30 outline-none focus:border-indigo-400"
+            className="w-full resize-none rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-base text-white placeholder-white/50 outline-none focus:border-indigo-400"
           />
           <div className="flex gap-2">
             <button
@@ -1033,7 +1033,7 @@ function PermissionCard({
                   formatRejectionReason(item.toolName, rejectText.trim()),
                 )
               }
-              className="rounded-md bg-red-500/80 px-3 py-1 text-xs font-medium text-white hover:bg-red-500"
+              className="rounded-md bg-red-500/80 px-4 inline-flex min-h-[44px] items-center text-sm font-medium text-white hover:bg-red-500"
             >
               {t("perm.rejectConfirm")}
             </button>
@@ -1043,7 +1043,7 @@ function PermissionCard({
                 setRejectMode(false);
                 setRejectText("");
               }}
-              className="rounded-md border border-white/20 px-3 py-1 text-xs font-medium text-white/70 hover:bg-white/5"
+              className="rounded-md border border-white/20 px-4 inline-flex min-h-[44px] items-center text-sm font-medium text-white/70 hover:bg-white/5"
             >
               {t("perm.rejectBack")}
             </button>
@@ -1078,7 +1078,7 @@ function SummaryRow({
 
   if (parts.length === 0 && !item.is_error) return null;
   return (
-    <div className="text-center text-xs text-white/30">
+    <div className="text-center text-xs text-white/55">
       {item.is_error && <span className="mr-1 text-red-300">{t("summary.error")}</span>}
       {parts.join(" · ")}
     </div>

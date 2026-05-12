@@ -52,7 +52,7 @@ export function ApiKeyDialog({ onSubmit, errorHint }: Props) {
             if (e.key === "Enter" && !busy) submit();
           }}
           placeholder={t("auth.placeholder")}
-          className="mt-4 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-base text-white placeholder-white/30 outline-none focus:border-indigo-400"
+          className="mt-4 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-base text-white placeholder-white/50 outline-none focus:border-indigo-400"
         />
         {error && (
           <div className="mt-3 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-300">
