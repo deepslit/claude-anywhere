@@ -674,7 +674,7 @@ function AskQuestionCard({
               {q.options.map((opt) => (
                 <label
                   key={opt.label}
-                  className={`flex cursor-pointer items-start gap-2 rounded p-1.5 hover:bg-white/[0.03] ${
+                  className={`flex min-h-[44px] cursor-pointer items-start gap-2.5 rounded p-2.5 hover:bg-white/[0.03] ${
                     selections[qi]?.includes(opt.label) ? "bg-white/[0.05]" : ""
                   } ${decided || cancelled || submitting ? "pointer-events-none opacity-60" : ""}`}
                 >
@@ -683,12 +683,12 @@ function AskQuestionCard({
                     name={`q-${item.requestId}-${qi}`}
                     checked={selections[qi]?.includes(opt.label) || false}
                     onChange={() => toggleSelection(qi, opt.label)}
-                    className="mt-0.5"
+                    className="mt-1 h-4 w-4 shrink-0 accent-sky-500"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm text-white">{opt.label}</div>
                     {opt.description && (
-                      <div className="text-xs text-white/50">
+                      <div className="text-xs text-white/55">
                         {opt.description}
                       </div>
                     )}
@@ -696,7 +696,7 @@ function AskQuestionCard({
                 </label>
               ))}
               <label
-                className={`flex cursor-pointer items-start gap-2 rounded p-1.5 hover:bg-white/[0.03] ${
+                className={`flex min-h-[44px] cursor-pointer items-start gap-2.5 rounded p-2.5 hover:bg-white/[0.03] ${
                   isOtherSelected(qi) ? "bg-white/[0.05]" : ""
                 } ${decided || cancelled || submitting ? "pointer-events-none opacity-60" : ""}`}
               >
@@ -705,7 +705,7 @@ function AskQuestionCard({
                   name={`q-${item.requestId}-${qi}`}
                   checked={isOtherSelected(qi) || false}
                   onChange={() => toggleSelection(qi, "__other__")}
-                  className="mt-0.5"
+                  className="mt-1 h-4 w-4 shrink-0 accent-sky-500"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-white/80">
@@ -717,7 +717,7 @@ function AskQuestionCard({
                       value={otherText[qi]}
                       onChange={(e) => setOther(qi, e.target.value)}
                       placeholder={t("ask.otherPlaceholder")}
-                      className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-base text-white placeholder-white/50 outline-none focus:border-sky-400"
+                      className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-2 text-base text-white placeholder-white/50 outline-none focus:border-sky-400"
                     />
                   )}
                 </div>

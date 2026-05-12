@@ -728,6 +728,26 @@ function Sidebar({
   onClose,
 }: SidebarProps) {
   const { t, locale, setLocale } = useT();
+  const formatTime = (mtimeSec: number) => {
+    const d = new Date(mtimeSec * 1000);
+    const now = new Date();
+    const isSameDay =
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    const within7d = now.getTime() - d.getTime() < sevenDays;
+    const tagLocale = locale === "zh" ? "zh-CN" : "en-US";
+    if (isSameDay) {
+      return d.toLocaleTimeString(tagLocale, { hour: "2-digit", minute: "2-digit" });
+    }
+    if (within7d) {
+      return d.toLocaleDateString(tagLocale, { weekday: "short" }) +
+        " " +
+        d.toLocaleTimeString(tagLocale, { hour: "2-digit", minute: "2-digit" });
+    }
+    return d.toLocaleDateString(tagLocale, { month: "2-digit", day: "2-digit" });
+  };
   return (
     <>
       {open && (
@@ -788,7 +808,7 @@ function Sidebar({
                 >
                   <div className="truncate text-white/90">{s.title}</div>
                   <div className="mt-0.5 truncate text-xs text-white/55">
-                    {s.dir_name} · {new Date(s.mtime * 1000).toLocaleString()}
+                    {s.dir_name} · {formatTime(s.mtime)}
                   </div>
                 </button>
               ))
