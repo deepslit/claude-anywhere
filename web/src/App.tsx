@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { useApiKey } from "./store/auth";
 import { ApiKeyDialog } from "./components/ApiKeyDialog";
 import { MessageBlock } from "./components/MessageBlock";
@@ -31,6 +31,9 @@ interface ChatState {
   items: TimelineItem[];
   openByIndex: Record<number, string>;
 }
+
+const INITIAL_WINDOW = 30;
+const OLDER_PAGE_SIZE = 30;
 
 const emptyChat: ChatState = { items: [], openByIndex: {} };
 
@@ -400,6 +403,16 @@ function Chat({ apiKey, onLogout }: ChatProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  // Progressive history loading: render items.slice(firstIdx).
+  // - On session change → firstIdx reset to 0
+  // - When items first populate (history load) → anchor to the tail
+  // - On scroll-up sentinel hit → firstIdx -= OLDER_PAGE_SIZE
+  // - On streaming (items.length grows during a turn) → firstIdx unchanged,
+  //   so new items appear at the tail and old offscreen items stay hidden.
+  const [firstIdx, setFirstIdx] = useState(0);
+  const prevItemsLenRef = useRef(0);
+  const loadingOlderRef = useRef<{ prevScrollHeight: number; prevScrollTop: number } | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     listDirs(apiKey)
@@ -440,7 +453,61 @@ function Chat({ apiKey, onLogout }: ChatProps) {
   // sticky-to-bottom flag so the initial history scrolls into place.
   useEffect(() => {
     setIsAtBottom(true);
+    setFirstIdx(0);
+    prevItemsLenRef.current = 0;
   }, [currentId]);
+
+  // When the items array first populates for a session (history load),
+  // anchor firstIdx so we only render the last INITIAL_WINDOW items.
+  // Subsequent grows (streaming) leave firstIdx alone — new items just
+  // appear at the tail.
+  useEffect(() => {
+    if (prevItemsLenRef.current === 0 && chat.items.length > INITIAL_WINDOW) {
+      setFirstIdx(chat.items.length - INITIAL_WINDOW);
+    }
+    prevItemsLenRef.current = chat.items.length;
+  }, [chat.items.length]);
+
+  // Scroll preservation when prepending older items: capture pre-render
+  // scroll metrics before firstIdx decreases, then adjust scrollTop after
+  // the render so the user's viewport stays anchored to the same content.
+  useLayoutEffect(() => {
+    const pending = loadingOlderRef.current;
+    if (!pending) return;
+    const el = scrollRef.current;
+    if (el) {
+      const delta = el.scrollHeight - pending.prevScrollHeight;
+      el.scrollTop = pending.prevScrollTop + delta;
+    }
+    loadingOlderRef.current = null;
+  }, [firstIdx]);
+
+  const loadOlder = useCallback(() => {
+    if (firstIdx <= 0) return;
+    const el = scrollRef.current;
+    if (el) {
+      loadingOlderRef.current = {
+        prevScrollHeight: el.scrollHeight,
+        prevScrollTop: el.scrollTop,
+      };
+    }
+    setFirstIdx((idx) => Math.max(0, idx - OLDER_PAGE_SIZE));
+  }, [firstIdx]);
+
+  // Wire up an IntersectionObserver on the "load older" sentinel so the
+  // user just has to scroll up — no button — to bring in 30 more items.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || firstIdx <= 0) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) loadOlder();
+      },
+      { root: scrollRef.current, rootMargin: "200px 0px 0px 0px", threshold: 0 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [firstIdx, loadOlder]);
 
   const openSession = async (id: string, dirName: string) => {
     setCurrentId(id);
@@ -625,7 +692,21 @@ function Chat({ apiKey, onLogout }: ChatProps) {
               <EmptyState onNew={() => setPickerOpen(true)} />
             ) : (
               <div className="mx-auto flex min-w-0 max-w-3xl flex-col gap-3">
-                {chat.items.map((it) => (
+                {firstIdx > 0 && (
+                  <div ref={sentinelRef} className="flex justify-center py-3">
+                    <button
+                      type="button"
+                      onClick={loadOlder}
+                      className="inline-flex h-9 items-center rounded-full border border-white/10 bg-white/5 px-3 text-xs text-white/70 hover:bg-white/10"
+                    >
+                      {t("chat.loadOlder", {
+                        count: Math.min(OLDER_PAGE_SIZE, firstIdx),
+                        remaining: firstIdx,
+                      })}
+                    </button>
+                  </div>
+                )}
+                {chat.items.slice(firstIdx).map((it) => (
                   <MessageBlock
                     key={it.id}
                     item={it}
