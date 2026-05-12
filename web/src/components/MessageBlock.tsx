@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { diffLines, type Change } from "diff";
 import type { TimelineItem } from "../api/types";
 import { Markdown } from "./Markdown";
@@ -16,7 +16,12 @@ interface Props {
   onOpenFile?: (path: string) => void;
 }
 
-export function MessageBlock({ item, onDecide, onInterrupt, onOpenFile }: Props) {
+export const MessageBlock = memo(function MessageBlock({
+  item,
+  onDecide,
+  onInterrupt,
+  onOpenFile,
+}: Props) {
   switch (item.kind) {
     case "user":
       return <UserBubble text={item.text} />;
@@ -50,7 +55,7 @@ export function MessageBlock({ item, onDecide, onInterrupt, onOpenFile }: Props)
     default:
       return null;
   }
-}
+});
 
 function UserBubble({ text }: { text: string }) {
   return (
@@ -400,18 +405,22 @@ function EditDiffCard({
     inputObj && typeof inputObj.file_path === "string"
       ? (inputObj.file_path as string)
       : null;
-  const entries = parseEditEntries(item.input);
-  const total = entries.reduce(
-    (acc, e) => {
-      const ch = diffLines(e.old, e.next);
-      ch.forEach((c) => {
-        const lines = countLines(c.value);
-        if (c.added) acc.add += lines;
-        else if (c.removed) acc.del += lines;
-      });
-      return acc;
-    },
-    { add: 0, del: 0 },
+  const entries = useMemo(() => parseEditEntries(item.input), [item.input]);
+  const total = useMemo(
+    () =>
+      entries.reduce(
+        (acc, e) => {
+          const ch = diffLines(e.old, e.next);
+          ch.forEach((c) => {
+            const lines = countLines(c.value);
+            if (c.added) acc.add += lines;
+            else if (c.removed) acc.del += lines;
+          });
+          return acc;
+        },
+        { add: 0, del: 0 },
+      ),
+    [entries],
   );
 
   return (
@@ -461,7 +470,7 @@ function DiffBlock({
   index: number;
   total: number;
 }) {
-  const changes = diffLines(oldText, newText);
+  const changes = useMemo(() => diffLines(oldText, newText), [oldText, newText]);
   return (
     <div className="overflow-hidden rounded-md border border-white/5 bg-black/30">
       {total > 1 && (

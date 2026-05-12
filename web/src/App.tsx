@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useApiKey } from "./store/auth";
 import { ApiKeyDialog } from "./components/ApiKeyDialog";
 import { MessageBlock } from "./components/MessageBlock";
@@ -530,34 +530,39 @@ function Chat({ apiKey, onLogout }: ChatProps) {
     abortRef.current?.abort();
   };
 
-  const onPermissionDecide = async (
-    requestId: string,
-    decision: "allow" | "allow_always" | "deny",
-    reason?: string,
-    setMode?: string,
-  ) => {
-    if (!currentId) return;
-    dispatch({ kind: "permission_status", requestId, status: "submitting" });
-    try {
-      const r = await decidePermission(
-        apiKey,
-        currentId,
-        requestId,
-        decision,
-        reason,
-        setMode,
-      );
-      if (r.permission_mode) setCurrentMode(r.permission_mode);
-      dispatch({ kind: "permission_status", requestId, status: decision });
-    } catch (e) {
-      dispatch({ kind: "permission_status", requestId, status: "pending" });
-      setErrorMsg(t("err.permissionSubmit", { msg: (e as Error).message }));
-    }
-  };
+  const onPermissionDecide = useCallback(
+    async (
+      requestId: string,
+      decision: "allow" | "allow_always" | "deny",
+      reason?: string,
+      setMode?: string,
+    ) => {
+      if (!currentId) return;
+      dispatch({ kind: "permission_status", requestId, status: "submitting" });
+      try {
+        const r = await decidePermission(
+          apiKey,
+          currentId,
+          requestId,
+          decision,
+          reason,
+          setMode,
+        );
+        if (r.permission_mode) setCurrentMode(r.permission_mode);
+        dispatch({ kind: "permission_status", requestId, status: decision });
+      } catch (e) {
+        dispatch({ kind: "permission_status", requestId, status: "pending" });
+        setErrorMsg(t("err.permissionSubmit", { msg: (e as Error).message }));
+      }
+    },
+    [apiKey, currentId, t],
+  );
 
-  const onPermissionInterrupt = () => {
-    cancel();
-  };
+  const onPermissionInterrupt = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  const onOpenFile = useCallback((p: string) => setViewingFile(p), []);
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -626,7 +631,7 @@ function Chat({ apiKey, onLogout }: ChatProps) {
                     item={it}
                     onDecide={onPermissionDecide}
                     onInterrupt={onPermissionInterrupt}
-                    onOpenFile={(p) => setViewingFile(p)}
+                    onOpenFile={onOpenFile}
                   />
                 ))}
                 <div ref={bottomRef} />
