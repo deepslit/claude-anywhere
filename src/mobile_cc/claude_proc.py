@@ -213,12 +213,17 @@ async def run_turn(
     hook_path: Path | None = None,
     backend_url: str | None = None,
     api_key: str | None = None,
+    on_proc_started: "callable | None" = None,
 ) -> AsyncIterator[dict]:
     """Run one user turn against Claude Code; yield translated SSE-shaped dicts.
 
     If ``perm_queue`` is provided we forward any permission events the broker
     pushes onto it into the same output stream — so the SSE handler stays a
     single async iterator from the route's point of view.
+
+    ``on_proc_started`` lets the caller capture the spawned subprocess as
+    soon as it exists, e.g. so a TurnRunner can implement cancel by
+    terminating the proc from outside this generator.
     """
     is_new = not transcript_path(session_id, working_dir).exists()
     install_hook = (
@@ -255,6 +260,11 @@ async def run_turn(
         stderr=asyncio.subprocess.PIPE,
         env=env,
     )
+    if on_proc_started is not None:
+        try:
+            on_proc_started(proc)
+        except Exception:  # noqa: BLE001
+            pass
 
     user_event = {
         "type": "user",

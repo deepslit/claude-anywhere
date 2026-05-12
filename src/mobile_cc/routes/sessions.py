@@ -73,12 +73,28 @@ def get_session(request: Request, session_id: str) -> dict:
         raise HTTPException(status_code=404, detail="session not found")
 
     transcript = _read_transcript(meta.working_dir, session_id)
+
+    # Expose whether a turn is currently running (or recently finished) so
+    # the client can decide whether to subscribe via GET /messages?since=N.
+    manager = getattr(request.app.state, "turns", None)
+    active_turn = None
+    if manager is not None:
+        runner = manager.get(session_id)
+        if runner is not None:
+            active_turn = {
+                "turn_id": runner.turn_id,
+                "done": runner.done,
+                "cancelled": runner.cancelled,
+                "last_event_id": runner.last_event_id,
+            }
+
     return {
         "id": meta.id,
         "working_dir": str(meta.working_dir),
         "dir_name": meta.dir_name,
         "permission_mode": meta.permission_mode,
         "events": transcript,
+        "active_turn": active_turn,
     }
 
 

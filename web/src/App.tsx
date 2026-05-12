@@ -8,13 +8,16 @@ import { useBodyScrollLock } from "./hooks/useBodyScrollLock";
 import { useT } from "./i18n";
 import {
   ApiError,
+  cancelMessage,
   checkAuth,
   createSession,
   decidePermission,
   getSession,
   listDirs,
   listSessions,
+  resumeMessage,
   streamMessage,
+  type StreamEnvelope,
 } from "./api/client";
 import type {
   AllowedDir,
@@ -399,7 +402,18 @@ function Chat({ apiKey, onLogout }: ChatProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  // Each in-flight stream (POST or resume) holds an AbortController so we
+  // can swap it for a fresh resume when the page returns from background.
+  // Aborting only kills the local fetch — it does NOT terminate the
+  // server-side turn (that's now an explicit POST /messages/cancel).
+  const streamCtrlRef = useRef<AbortController | null>(null);
+  // Server-assigned id of the last SSE event we successfully dispatched.
+  // The reconnect endpoint replays everything with id > lastEventId.
+  const lastEventIdRef = useRef(0);
+  // Whether we believe the server still has a turn running for this session.
+  // Driven by the stream's done/error events; reset on session change /
+  // session resume.
+  const turnActiveRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -509,12 +523,56 @@ function Chat({ apiKey, onLogout }: ChatProps) {
     return () => obs.disconnect();
   }, [firstIdx, loadOlder]);
 
+  // Drives an async iterable of StreamEnvelopes into the reducer. Returns
+  // gracefully on abort (resume will be tried elsewhere) and only flips the
+  // "sending" / "turn active" flags off when we see a true terminator
+  // (`done` or `error`).
+  const consumeStream = useCallback(
+    async (gen: AsyncGenerator<StreamEnvelope>) => {
+      let terminated = false;
+      try {
+        for await (const { id, event } of gen) {
+          lastEventIdRef.current = id;
+          dispatch({ kind: "stream", evt: event });
+          if (event.type === "done" || event.type === "error") {
+            terminated = true;
+          }
+        }
+      } catch (e) {
+        if ((e as DOMException).name !== "AbortError") {
+          // 404 on resume usually means "no active turn" — treat as benign,
+          // we'll just stop trying.
+          if (e instanceof ApiError && e.status === 404) {
+            terminated = true;
+          } else {
+            setErrorMsg(t("err.chat", { msg: (e as Error).message }));
+            terminated = true;
+          }
+        }
+      } finally {
+        streamCtrlRef.current = null;
+        if (terminated) {
+          turnActiveRef.current = false;
+          setSending(false);
+          dispatch({ kind: "expire_pending" });
+          refreshSessions();
+        }
+      }
+    },
+    [t],
+  );
+
   const openSession = async (id: string, dirName: string) => {
     setCurrentId(id);
     setCurrentDirName(dirName);
     setCurrentMode(null);
     setDrawerOpen(false);
     dispatch({ kind: "reset" });
+    // Stop any prior in-flight stream from a previous session.
+    streamCtrlRef.current?.abort();
+    turnActiveRef.current = false;
+    lastEventIdRef.current = 0;
+    setSending(false);
     try {
       const detail = await getSession(apiKey, id);
       setCurrentMode(detail.permission_mode ?? null);
@@ -523,6 +581,19 @@ function Chat({ apiKey, onLogout }: ChatProps) {
         kind: "history",
         events: detail.events as Array<Record<string, unknown>>,
       });
+      // If the session has an active (or recently-finished) turn we don't
+      // have in our local timeline yet, subscribe to it.
+      const at = detail.active_turn;
+      if (at && !at.done) {
+        turnActiveRef.current = true;
+        setSending(true);
+        const ctrl = new AbortController();
+        streamCtrlRef.current = ctrl;
+        // Resume from 0 so we get every event of the in-flight turn. The
+        // JSONL we just loaded contains older completed turns; the
+        // in-memory log starts fresh at id=1 per turn so there's no overlap.
+        consumeStream(resumeMessage(apiKey, id, 0, ctrl.signal));
+      }
     } catch (e) {
       setErrorMsg(t("err.sessionLoad", { msg: (e as Error).message }));
     }
@@ -545,6 +616,10 @@ function Chat({ apiKey, onLogout }: ChatProps) {
     }
   };
 
+  // Drives an async iterable of StreamEnvelopes into the reducer. Returns
+  // gracefully on abort (resume will be tried elsewhere) and only flips the
+  // "sending" / "turn active" flags off when we see a true terminator
+  // (`done` or `error`).
   const send = async () => {
     const text = input.trim();
     if (!text || !currentId || sending) return;
@@ -567,35 +642,59 @@ function Chat({ apiKey, onLogout }: ChatProps) {
     setInput("");
     setErrorMsg(null);
     setSending(true);
+    turnActiveRef.current = true;
+    lastEventIdRef.current = 0;
     dispatch({ kind: "user_send", text });
 
+    streamCtrlRef.current?.abort();
     const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    try {
-      for await (const evt of streamMessage(
+    streamCtrlRef.current = ctrl;
+    await consumeStream(
+      streamMessage(
         apiKey,
         currentId,
         text,
         ctrl.signal,
         currentMode ?? undefined,
-      )) {
-        dispatch({ kind: "stream", evt });
-      }
-    } catch (e) {
-      if ((e as DOMException).name !== "AbortError") {
-        setErrorMsg(t("err.chat", { msg: (e as Error).message }));
-      }
-    } finally {
-      setSending(false);
-      abortRef.current = null;
-      dispatch({ kind: "expire_pending" });
-      refreshSessions();
-    }
+      ),
+    );
   };
 
-  const cancel = () => {
-    abortRef.current?.abort();
-  };
+  const cancel = useCallback(async () => {
+    if (!currentId) return;
+    try {
+      await cancelMessage(apiKey, currentId);
+    } catch {
+      // Ignore — the server may have already finished the turn. The
+      // outstanding stream will surface a `done` event with stop_reason
+      // soon (or already has), which flips sending off.
+    }
+  }, [apiKey, currentId]);
+
+  // Mobile Safari closes background fetches aggressively. When the user
+  // returns to the tab while we still think a turn is in flight, swap the
+  // (likely dead) stream for a fresh resume from the last event id we saw.
+  useEffect(() => {
+    const onResume = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!turnActiveRef.current || !currentId) return;
+      streamCtrlRef.current?.abort();
+      const ctrl = new AbortController();
+      streamCtrlRef.current = ctrl;
+      setSending(true);
+      consumeStream(
+        resumeMessage(apiKey, currentId, lastEventIdRef.current, ctrl.signal),
+      );
+    };
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("pageshow", onResume);
+    window.addEventListener("focus", onResume);
+    return () => {
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("pageshow", onResume);
+      window.removeEventListener("focus", onResume);
+    };
+  }, [apiKey, currentId, consumeStream]);
 
   const onPermissionDecide = useCallback(
     async (
@@ -626,8 +725,8 @@ function Chat({ apiKey, onLogout }: ChatProps) {
   );
 
   const onPermissionInterrupt = useCallback(() => {
-    abortRef.current?.abort();
-  }, []);
+    cancel();
+  }, [cancel]);
 
   const onOpenFile = useCallback((p: string) => setViewingFile(p), []);
 

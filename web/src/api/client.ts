@@ -76,12 +76,20 @@ export function createSession(
   });
 }
 
+export interface ActiveTurn {
+  turn_id: string;
+  done: boolean;
+  cancelled: boolean;
+  last_event_id: number;
+}
+
 export interface SessionDetail {
   id: string;
   working_dir: string;
   dir_name: string;
   permission_mode: string;
   events: Array<Record<string, unknown>>;
+  active_turn: ActiveTurn | null;
 }
 
 export function getSession(
@@ -152,13 +160,20 @@ export function fetchFile(
   );
 }
 
+export interface StreamEnvelope {
+  /**
+   * Server-assigned event id (monotonic per turn, starts at 1). Used by the
+   * client to resume the stream after a disconnect via GET /messages?since.
+   */
+  id: number;
+  event: StreamEvent;
+}
+
 /**
- * Stream chat events from the SSE endpoint. The returned async iterable
- * yields one StreamEvent per SSE `data:` payload.
- *
- * Cancellation: pass an AbortSignal — calling `.abort()` will close the
- * underlying fetch and propagate as a thrown DOMException. Callers should
- * treat AbortError as a graceful cancel, not a failure.
+ * Start a new turn (POST) and stream events as they arrive. The returned
+ * iterator can be torn down at any time (close the fetch, refresh the
+ * tab) — the server-side turn keeps running and its events are buffered
+ * for later replay through ``resumeMessage``.
  *
  * If `permissionMode` is provided it overrides the session's default for
  * this turn AND becomes the session's new sticky default.
@@ -169,7 +184,7 @@ export async function* streamMessage(
   text: string,
   signal?: AbortSignal,
   permissionMode?: string,
-): AsyncGenerator<StreamEvent> {
+): AsyncGenerator<StreamEnvelope> {
   const r = await fetch(
     `/api/sessions/${encodeURIComponent(sessionId)}/messages`,
     {
@@ -184,19 +199,56 @@ export async function* streamMessage(
     },
   );
   if (!r.ok) throw new ApiError(r.status, await r.text());
-  if (!r.body) return;
+  yield* _readSSE(r);
+}
 
+/**
+ * Resubscribe to a session's current (or most recently finished) turn,
+ * replaying everything with event id > since and then continuing live.
+ * Used when the client comes back from background / network blip.
+ *
+ * Throws ApiError(404) if there's no turn to resume.
+ */
+export async function* resumeMessage(
+  apiKey: string,
+  sessionId: string,
+  since: number,
+  signal?: AbortSignal,
+): AsyncGenerator<StreamEnvelope> {
+  const r = await fetch(
+    `/api/sessions/${encodeURIComponent(sessionId)}/messages?since=${since}`,
+    {
+      method: "GET",
+      headers: authHeaders(apiKey),
+      signal,
+    },
+  );
+  if (!r.ok) throw new ApiError(r.status, await r.text());
+  yield* _readSSE(r);
+}
+
+/** Cancel the active turn for a session (terminates the claude subprocess). */
+export async function cancelMessage(
+  apiKey: string,
+  sessionId: string,
+): Promise<{ ok: boolean }> {
+  return jsonPost(
+    `/api/sessions/${encodeURIComponent(sessionId)}/messages/cancel`,
+    apiKey,
+    {},
+  );
+}
+
+async function* _readSSE(r: Response): AsyncGenerator<StreamEnvelope> {
+  if (!r.body) return;
   const reader = r.body.getReader();
   const decoder = new TextDecoder("utf-8");
   let buf = "";
-
   try {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
       buf += decoder.decode(value, { stream: true });
-
-      // Each SSE event is terminated by a blank line (\n\n).
       let idx: number;
       while ((idx = buf.indexOf("\n\n")) !== -1) {
         const raw = buf.slice(0, idx);
@@ -204,7 +256,10 @@ export async function* streamMessage(
         const data = parseSSEData(raw);
         if (data == null) continue;
         try {
-          yield JSON.parse(data) as StreamEvent;
+          const event = JSON.parse(data) as StreamEvent & { _id?: number };
+          const id = typeof event._id === "number" ? event._id : 0;
+          if ("_id" in event) delete (event as { _id?: number })._id;
+          yield { id, event: event as StreamEvent };
         } catch {
           // ignore unparsable
         }

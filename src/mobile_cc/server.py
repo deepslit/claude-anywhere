@@ -18,6 +18,7 @@ from .routes import (
     sessions as sessions_routes,
 )
 from .sessions import SessionRegistry
+from .turns import TurnManager
 
 
 def create_app(project_root: Path | None = None) -> FastAPI:
@@ -27,12 +28,14 @@ def create_app(project_root: Path | None = None) -> FastAPI:
     registry = SessionRegistry(config)
     broker = PermissionBroker()
     broker.attach_sessions(registry)
+    turns = TurnManager()
 
     app = FastAPI(title="mobile-cc", version="0.1.0")
     app.state.config = config
     app.state.api_key = api_key
     app.state.sessions = registry
     app.state.permissions = broker
+    app.state.turns = turns
     app.state.project_root = project_root
     app.state.slash_cache_by_dir = {}
     app.state.slash_cache_locks = {}
