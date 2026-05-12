@@ -275,18 +275,21 @@ function ToolResultCard({
   item: Extract<TimelineItem, { kind: "tool_result" }>;
 }) {
   const { t } = useT();
-  const content =
-    typeof item.content === "string"
-      ? item.content
-      : Array.isArray(item.content)
+  const content = useMemo(
+    () =>
+      typeof item.content === "string"
         ? item.content
-            .map((c) =>
-              typeof c === "string"
-                ? c
-                : (c as { text?: string }).text ?? JSON.stringify(c),
-            )
-            .join("\n")
-        : JSON.stringify(item.content, null, 2);
+        : Array.isArray(item.content)
+          ? item.content
+              .map((c) =>
+                typeof c === "string"
+                  ? c
+                  : (c as { text?: string }).text ?? JSON.stringify(c),
+              )
+              .join("\n")
+          : JSON.stringify(item.content, null, 2),
+    [item.content],
+  );
 
   // TodoWrite's success result is a verbose system reminder. The list itself
   // is already rendered upstream by TodoListCard — suppress the result.
@@ -351,14 +354,52 @@ function ToolResultCard({
     };
   })();
 
+  // User-facing variants (answers / plan-approved / plan-feedback / decline)
+  // always render in full — they're the actual conversation, not tool noise.
+  // Plain success results and real errors collapse by default; tap the header
+  // to expand. This keeps long sessions tractable on mobile.
+  const alwaysExpand =
+    variant === "answers" ||
+    variant === "plan-approved" ||
+    variant === "plan-feedback" ||
+    variant === "decline";
+  const [expanded, setExpanded] = useState(alwaysExpand);
+  const preview = useMemo(() => buildPreview(content), [content]);
+  const isCollapsible = !alwaysExpand;
+
   return (
-    <div className={`rounded-lg border ${cls} px-3 py-2 text-sm`}>
-      <div className="text-xs uppercase tracking-wider opacity-70">{label}</div>
-      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-words text-sm">
-        {content}
-      </pre>
+    <div className={`min-w-0 rounded-lg border ${cls} px-3 py-2 text-sm`}>
+      <button
+        type="button"
+        onClick={isCollapsible ? () => setExpanded((v) => !v) : undefined}
+        disabled={!isCollapsible}
+        className={`flex w-full items-center gap-2 text-left ${
+          isCollapsible ? "cursor-pointer" : "cursor-default"
+        }`}
+      >
+        <span className="text-xs uppercase tracking-wider opacity-70">{label}</span>
+        {isCollapsible && !expanded && preview && (
+          <span className="min-w-0 flex-1 truncate text-xs opacity-70">
+            {preview}
+          </span>
+        )}
+        {isCollapsible && (
+          <span className="ml-auto text-xs opacity-60">{expanded ? "▾" : "▸"}</span>
+        )}
+      </button>
+      {expanded && (
+        <pre className="mt-1 max-h-96 overflow-auto overscroll-contain whitespace-pre-wrap break-words text-sm">
+          {content}
+        </pre>
+      )}
     </div>
   );
+}
+
+function buildPreview(content: string): string {
+  const flat = content.replace(/\s+/g, " ").trim();
+  if (flat.length <= 80) return flat;
+  return flat.slice(0, 80) + "…";
 }
 
 // Edit / MultiEdit get a unified diff render: each (old_string, new_string)
