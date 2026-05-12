@@ -4,6 +4,7 @@ import { ApiKeyDialog } from "./components/ApiKeyDialog";
 import { MessageBlock } from "./components/MessageBlock";
 import { Composer } from "./components/Composer";
 import { FileViewer } from "./components/FileViewer";
+import { useBodyScrollLock } from "./hooks/useBodyScrollLock";
 import { useT } from "./i18n";
 import {
   ApiError,
@@ -397,6 +398,8 @@ function Chat({ apiKey, onLogout }: ChatProps) {
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
   useEffect(() => {
     listDirs(apiKey)
@@ -417,8 +420,27 @@ function Chat({ apiKey, onLogout }: ChatProps) {
   };
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [chat.items.length]);
+    // Only auto-stick to the bottom while the user is actually reading the
+    // latest content. If they scrolled up to read history, we don't want to
+    // yank them down on every text_delta — that's why this is gated by
+    // `isAtBottom`.
+    if (isAtBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    }
+  }, [chat.items, isAtBottom]);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setIsAtBottom(distFromBottom < 60);
+  };
+
+  // Whenever the user switches into a new session, reset the
+  // sticky-to-bottom flag so the initial history scrolls into place.
+  useEffect(() => {
+    setIsAtBottom(true);
+  }, [currentId]);
 
   const openSession = async (id: string, dirName: string) => {
     setCurrentId(id);
@@ -584,28 +606,50 @@ function Chat({ apiKey, onLogout }: ChatProps) {
           </div>
         )}
 
-        <div
-          className="flex-1 overflow-y-auto overscroll-contain px-3 py-4"
-          style={{
-            paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
-            paddingRight: "max(0.75rem, env(safe-area-inset-right))",
-          }}
-        >
-          {!currentId ? (
-            <EmptyState onNew={() => setPickerOpen(true)} />
-          ) : (
-            <div className="mx-auto flex min-w-0 max-w-3xl flex-col gap-3">
-              {chat.items.map((it) => (
-                <MessageBlock
-                  key={it.id}
-                  item={it}
-                  onDecide={onPermissionDecide}
-                  onInterrupt={onPermissionInterrupt}
-                  onOpenFile={(p) => setViewingFile(p)}
-                />
-              ))}
-              <div ref={bottomRef} />
-            </div>
+        <div className="relative flex-1 overflow-hidden">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="absolute inset-0 overflow-y-auto overscroll-contain px-3 py-4"
+            style={{
+              paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
+              paddingRight: "max(0.75rem, env(safe-area-inset-right))",
+            }}
+          >
+            {!currentId ? (
+              <EmptyState onNew={() => setPickerOpen(true)} />
+            ) : (
+              <div className="mx-auto flex min-w-0 max-w-3xl flex-col gap-3">
+                {chat.items.map((it) => (
+                  <MessageBlock
+                    key={it.id}
+                    item={it}
+                    onDecide={onPermissionDecide}
+                    onInterrupt={onPermissionInterrupt}
+                    onOpenFile={(p) => setViewingFile(p)}
+                  />
+                ))}
+                <div ref={bottomRef} />
+              </div>
+            )}
+          </div>
+
+          {!isAtBottom && currentId && (
+            <button
+              type="button"
+              aria-label="跳到底部"
+              onClick={() => {
+                bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+                setIsAtBottom(true);
+              }}
+              className="absolute bottom-3 right-3 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#15151c]/95 text-lg text-white shadow-xl backdrop-blur hover:bg-[#1a1a22]"
+              style={{
+                bottom: "max(0.75rem, env(safe-area-inset-bottom))",
+                right: "max(0.75rem, env(safe-area-inset-right))",
+              }}
+            >
+              ↓
+            </button>
           )}
         </div>
 
@@ -796,56 +840,75 @@ const PERMISSION_MODE_KEYS: Array<{
 function DirPicker({ dirs, onPick, onClose }: DirPickerProps) {
   const { t } = useT();
   const [mode, setMode] = useState<string>("default");
+  useBodyScrollLock();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-white/10 bg-[#15151c] p-5 shadow-2xl"
+        className="flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#15151c] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-base font-semibold text-white">{t("picker.title")}</div>
+        <div className="flex items-center justify-between border-b border-white/5 px-5 py-3">
+          <div className="text-base font-semibold text-white">{t("picker.title")}</div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("file.close")}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-lg text-white/70 hover:bg-white/5"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+          <div className="text-xs uppercase tracking-wider text-white/60">
+            {t("picker.permLabel")}
+          </div>
+          <div className="mt-1.5 space-y-1">
+            {PERMISSION_MODE_KEYS.map((p) => (
+              <button
+                type="button"
+                key={p.value}
+                onClick={() => setMode(p.value)}
+                className={`block w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                  mode === p.value
+                    ? "border-indigo-400/60 bg-indigo-500/10"
+                    : "border-white/5 bg-black/20 hover:border-white/15"
+                }`}
+              >
+                <div className="text-sm text-white">{t(p.labelKey)}</div>
+                <div className="mt-0.5 text-xs text-white/60">{t(p.hintKey)}</div>
+              </button>
+            ))}
+          </div>
 
-        <div className="mt-4 text-xs uppercase tracking-wider text-white/60">
-          {t("picker.permLabel")}
-        </div>
-        <div className="mt-1.5 space-y-1">
-          {PERMISSION_MODE_KEYS.map((p) => (
-            <button
-              type="button"
-              key={p.value}
-              onClick={() => setMode(p.value)}
-              className={`block w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                mode === p.value
-                  ? "border-indigo-400/60 bg-indigo-500/10"
-                  : "border-white/5 bg-black/20 hover:border-white/15"
-              }`}
-            >
-              <div className="text-sm text-white">{t(p.labelKey)}</div>
-              <div className="mt-0.5 text-xs text-white/60">{t(p.hintKey)}</div>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4 text-xs uppercase tracking-wider text-white/60">
-          {t("picker.dirLabel")}
-        </div>
-        <p className="mt-0.5 text-sm text-white/55">{t("picker.dirHint")}</p>
-        <div className="mt-2 flex flex-col gap-1">
-          {dirs.map((d) => (
-            <button
-              type="button"
-              key={d.path}
-              onClick={() => onPick(d, mode)}
-              className="rounded-lg border border-white/5 bg-black/20 px-3 py-2.5 text-left hover:border-indigo-400/60 hover:bg-indigo-500/5"
-            >
-              <div className="text-sm text-white">{d.name}</div>
-              <div className="mt-0.5 truncate font-mono text-xs text-white/55">
-                {d.path}
-              </div>
-            </button>
-          ))}
+          <div className="mt-4 text-xs uppercase tracking-wider text-white/60">
+            {t("picker.dirLabel")}
+          </div>
+          <p className="mt-0.5 text-sm text-white/55">{t("picker.dirHint")}</p>
+          <div className="mt-2 flex flex-col gap-1">
+            {dirs.map((d) => (
+              <button
+                type="button"
+                key={d.path}
+                onClick={() => onPick(d, mode)}
+                className="rounded-lg border border-white/5 bg-black/20 px-3 py-2.5 text-left hover:border-indigo-400/60 hover:bg-indigo-500/5"
+              >
+                <div className="text-sm text-white">{d.name}</div>
+                <div className="mt-0.5 truncate font-mono text-xs text-white/55">
+                  {d.path}
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

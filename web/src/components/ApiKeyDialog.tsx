@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { checkAuth } from "../api/client";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { useT } from "../i18n";
 
 interface Props {
@@ -12,6 +13,7 @@ export function ApiKeyDialog({ onSubmit, errorHint }: Props) {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(errorHint ?? null);
+  useBodyScrollLock();
 
   const submit = async () => {
     const k = value.trim();

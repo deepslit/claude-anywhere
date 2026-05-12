@@ -23,6 +23,7 @@ import xml from "highlight.js/lib/languages/xml";
 import yaml from "highlight.js/lib/languages/yaml";
 import "highlight.js/styles/github-dark.css";
 import { fetchFile, type FilePayload } from "../api/client";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { useT } from "../i18n";
 import { Markdown } from "./Markdown";
 
@@ -74,6 +75,7 @@ export function FileViewer({ apiKey, sessionId, path, onClose }: Props) {
   const [data, setData] = useState<FilePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const codeRef = useRef<HTMLElement | null>(null);
+  useBodyScrollLock();
 
   useEffect(() => {
     let cancelled = false;
@@ -118,12 +120,16 @@ export function FileViewer({ apiKey, sessionId, path, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-white/10 bg-[#0d0d14] shadow-2xl sm:rounded-2xl"
+        className="flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-white/10 bg-[#0d0d14] shadow-2xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
         style={{
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
+        {/* Mobile drag-handle affordance — hidden on sm+ where the modal is centered */}
+        <div className="flex justify-center py-2 sm:hidden">
+          <div className="h-1 w-10 rounded-full bg-white/20" />
+        </div>
         <div className="flex items-center gap-2 border-b border-white/5 px-4 py-2.5">
           <div className="min-w-0 flex-1">
             <div className="text-xs uppercase tracking-wider text-white/60">
