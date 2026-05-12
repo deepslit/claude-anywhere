@@ -549,8 +549,15 @@ function Chat({ apiKey, onLogout }: ChatProps) {
         onClose={() => setDrawerOpen(false)}
       />
 
-      <main className="flex flex-1 flex-col bg-[#0b0b10]">
-        <header className="flex items-center gap-2 border-b border-white/5 px-3 py-2 text-sm">
+      <main className="flex min-w-0 flex-1 flex-col bg-[#0b0b10]">
+        <header
+          className="flex items-center gap-2 border-b border-white/5 px-3 py-2 text-sm"
+          style={{
+            paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+            paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
+            paddingRight: "max(0.75rem, env(safe-area-inset-right))",
+          }}
+        >
           <button
             type="button"
             className="rounded-md p-1.5 text-white/70 hover:bg-white/5 md:hidden"
@@ -559,7 +566,7 @@ function Chat({ apiKey, onLogout }: ChatProps) {
           >
             ☰
           </button>
-          <div className="truncate">
+          <div className="min-w-0 truncate">
             {currentId ? (
               <span className="text-white/80">
                 <span className="text-white/40">{currentDirName ?? ""} · </span>
@@ -577,11 +584,17 @@ function Chat({ apiKey, onLogout }: ChatProps) {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-3 py-4">
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain px-3 py-4"
+          style={{
+            paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
+            paddingRight: "max(0.75rem, env(safe-area-inset-right))",
+          }}
+        >
           {!currentId ? (
             <EmptyState onNew={() => setPickerOpen(true)} />
           ) : (
-            <div className="mx-auto flex max-w-3xl flex-col gap-3">
+            <div className="mx-auto flex min-w-0 max-w-3xl flex-col gap-3">
               {chat.items.map((it) => (
                 <MessageBlock
                   key={it.id}
@@ -683,6 +696,11 @@ function Sidebar({
         className={`fixed inset-y-0 left-0 z-40 w-72 transform border-r border-white/5 bg-[#0d0d14] transition-transform md:relative md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
+        style={{
+          paddingTop: "env(safe-area-inset-top)",
+          paddingLeft: "env(safe-area-inset-left)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center gap-2 border-b border-white/5 px-3 py-3">

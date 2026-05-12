@@ -151,7 +151,14 @@ export function Composer({
   };
 
   return (
-    <div className="relative border-t border-white/5 bg-[#0d0d14] px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <div
+      className="relative border-t border-white/5 bg-[#0d0d14] px-3 py-2"
+      style={{
+        paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+        paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
+        paddingRight: "max(0.75rem, env(safe-area-inset-right))",
+      }}
+    >
       <div className="mx-auto flex max-w-3xl flex-col gap-1.5">
         <textarea
           ref={taRef}
@@ -167,7 +174,7 @@ export function Composer({
               : t("composer.placeholder")
           }
           disabled={disabled}
-          className="max-h-40 min-h-[2.4rem] w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-indigo-400 disabled:opacity-50"
+          className="max-h-40 min-h-[2.4rem] w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-base text-white placeholder-white/30 outline-none focus:border-indigo-400 disabled:opacity-50"
         />
         <div className="flex items-center gap-2">
           <ModeChip mode={mode} onChange={onModeChange} disabled={disabled} />

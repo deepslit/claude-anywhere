@@ -136,7 +136,7 @@ function ToolUseCard({
     ? JSON.stringify(item.input, null, 2)
     : item.partial ?? "…";
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+    <div className="min-w-0 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
       <div className="flex items-center gap-2 text-amber-300">
         <span className="text-xs uppercase tracking-wider">{t("block.toolBadge")}</span>
         <span className="font-mono">{item.name}</span>
@@ -147,7 +147,7 @@ function ToolUseCard({
           <button
             type="button"
             onClick={() => onOpenFile(filePath)}
-            className="ml-auto truncate font-mono text-xs text-amber-200 underline hover:text-amber-100"
+            className="ml-auto min-w-0 truncate font-mono text-xs text-amber-200 underline hover:text-amber-100"
             title={filePath}
           >
             {filePath.length > 50 ? "…" + filePath.slice(-48) : filePath}
@@ -415,7 +415,7 @@ function EditDiffCard({
   );
 
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+    <div className="min-w-0 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
       <div className="flex items-center gap-2 text-amber-300">
         <span className="text-xs uppercase tracking-wider">{item.name}</span>
         {!item.done && (
@@ -427,7 +427,7 @@ function EditDiffCard({
           <button
             type="button"
             onClick={() => onOpenFile?.(filePath)}
-            className="ml-auto truncate font-mono text-xs text-amber-200 underline hover:text-amber-100"
+            className="ml-auto min-w-0 truncate font-mono text-xs text-amber-200 underline hover:text-amber-100"
             title={filePath}
             disabled={!onOpenFile}
           >
@@ -717,7 +717,7 @@ function AskQuestionCard({
                       value={otherText[qi]}
                       onChange={(e) => setOther(qi, e.target.value)}
                       placeholder={t("ask.otherPlaceholder")}
-                      className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white placeholder-white/30 outline-none focus:border-sky-400"
+                      className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-base text-white placeholder-white/30 outline-none focus:border-sky-400"
                     />
                   )}
                 </div>
@@ -1021,7 +1021,7 @@ function PermissionCard({
             onChange={(e) => setRejectText(e.target.value)}
             rows={2}
             placeholder={t("perm.rejectPlaceholder")}
-            className="w-full resize-none rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-white placeholder-white/30 outline-none focus:border-indigo-400"
+            className="w-full resize-none rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-base text-white placeholder-white/30 outline-none focus:border-indigo-400"
           />
           <div className="flex gap-2">
             <button

@@ -120,6 +120,9 @@ export function FileViewer({ apiKey, sessionId, path, onClose }: Props) {
       <div
         className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-white/10 bg-[#0d0d14] shadow-2xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
+        style={{
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
       >
         <div className="flex items-center gap-2 border-b border-white/5 px-4 py-2.5">
           <div className="min-w-0 flex-1">

@@ -51,6 +51,17 @@ export function Markdown({ source, className, onOpenFile }: Props) {
               </a>
             );
           },
+          // Wide tables would otherwise force the whole page to scroll
+          // horizontally on phones. Wrap them in a horizontally-scrollable
+          // div so the rest of the layout stays put.
+          table: ({ node, ...rest }) => {
+            void node;
+            return (
+              <div className="my-2 overflow-x-auto">
+                <table {...rest} />
+              </div>
+            );
+          },
         }}
       >
         {source}
