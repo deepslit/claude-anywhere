@@ -1,34 +1,13 @@
 # mobile-cc configuration. Copy to config.toml and edit.
 
-# HTTP server. Default binds all interfaces (0.0.0.0) so the server is
-# reachable from your phone over LAN / public IP. If you put it on a public
-# IP, ALSO configure TLS below — the API key travels in the X-API-Key
-# header and over plain HTTP it's trivially sniffed. See README → Security.
 host = "0.0.0.0"
-port = 8788
-
-# TLS / HTTPS. Leave both empty for plain HTTP (development / private LAN).
-# Set both to enable HTTPS via uvicorn natively.
-#
-# Examples:
-#   ssl_certfile = "/etc/letsencrypt/live/cc.example.com/fullchain.pem"
-#   ssl_keyfile  = "/etc/letsencrypt/live/cc.example.com/privkey.pem"
-# Or self-signed for testing:
-#   ssl_certfile = "./certs/self.crt"
-#   ssl_keyfile  = "./certs/self.key"
-# ssl_certfile = ""
-# ssl_keyfile  = ""
+port = 21580
 
 # Path to claude binary (auto-detected via $PATH if omitted)
 # claude_bin = "/usr/local/bin/claude"
 
 # Working directories the user can pick from when starting a new session.
-# Each entry has a display name + filesystem path. Claude will be spawned with
-# cwd set to the chosen path, and @-completion globs files under it.
+# Each entry has a display name + filesystem path.
 [[allowed_dirs]]
-name = "mobile-cc 自己"
-path = "/root/workspace/claudecode/mobile-cc/workspaces"
-
-[[allowed_dirs]]
-name = "claudecode 工作区"
-path = "/root/workspace/claudecode"
+name = "My Project"
+path = "/path/to/your/project"

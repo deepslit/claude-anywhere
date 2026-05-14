@@ -12,7 +12,7 @@ Exit / output contract (CC PreToolUse):
 * exit 0 always (we never want CC to abort the run).
 
 Env vars set by the spawning Python backend:
-* MOBILE_CC_BACKEND: e.g. ``http://127.0.0.1:8788``
+* MOBILE_CC_BACKEND: e.g. ``http://127.0.0.1:21580``
 * MOBILE_CC_API_KEY: the X-API-Key the backend trusts
 * MOBILE_CC_SESSION_ID: which session this turn belongs to
 * MOBILE_CC_PERM_MODE: ``default``|``acceptEdits`` (we don't run for bypass)

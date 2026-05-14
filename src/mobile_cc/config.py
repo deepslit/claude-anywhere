@@ -42,7 +42,7 @@ def load_config(project_root: Path) -> Config:
             break
 
     host = str(raw.get("host", "0.0.0.0"))
-    port = int(raw.get("port", 8788))
+    port = int(raw.get("port", 21580))
     claude_bin = str(raw.get("claude_bin") or shutil.which("claude") or "claude")
     ssl_certfile = raw.get("ssl_certfile")
     ssl_keyfile = raw.get("ssl_keyfile")

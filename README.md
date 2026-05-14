@@ -1,26 +1,42 @@
 # mobile-cc
 
-给命令行版 Claude Code 套一个网页壳（手机优先）。后端是 FastAPI，spawn `claude` 子进程把 NDJSON 流转成 SSE 喂给浏览器；前端是 React 的 chat UI，支持 markdown / 思考块 / 工具调用卡片 / 权限审批 / 文件预览 / 历史会话 / `/` 联想 skills / `@` 联想文件。
+[English](#english) · [中文](#中文)
 
-## 三种用法
+---
 
-| | 适合场景 | 浏览器访问 |
-|---|---|---|
-| **A. 仅本地** | 自己电脑跑，同一台机器的浏览器访问 | `http://127.0.0.1:8788` |
-| **B. Cloudflare Tunnel** | 没有公网 IP（家用 / CGNAT），想用手机访问 | cloudflared 给的 `https://xxx.trycloudflare.com` |
-| **C. 公网 IP + TLS** | 服务器有真公网 IP 和域名 | `https://你的域名:8443` |
+<a id="english"></a>
 
-API key 等于完整 shell 权限（用户让 claude 调 Bash 然后自己点 allow 就行），所以**远程访问一定要用 HTTPS**——B 和 C 都自带，A 不出本机不用管。
+## Use Claude Code from your phone
 
-## 快速开始（公共部分）
+**Turn Claude Code into an OpenClaw — it works while you lounge in bed.**
 
-前置（macOS / Linux / Windows 通用）：
-- [Claude Code](https://www.npmjs.com/package/@anthropic-ai/claude-code)（`claude` 在 PATH）
-- Python 3.12+
-- Node 20+
-- [uv](https://docs.astral.sh/uv/)
+mobile-cc wraps the [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI in a mobile-friendly web UI. Run it on your computer, access it from any browser — no app install needed. Lie back, tap, ship.
 
-各平台装 uv（如果还没有）：
+### Why mobile-cc?
+
+- **Full Claude Code on mobile** — everything you can do in the terminal, now on your phone
+- **Real-time streaming** — SSE-based, see responses as they're generated
+- **Permission controls** — approve or reject tool calls with one tap
+- **Session history** — all past conversations, synced with Claude Code's own storage
+- **File preview** — tap any file path to see its contents
+- **Slash & mention completion** — `/` for skills, `@` for files, just like the CLI
+- **Bilingual UI** — English / 中文 toggle in the sidebar
+- **Zero external database** — sessions live in `~/.claude/`, nothing extra to manage
+
+### Quick Start
+
+#### 1. Install prerequisites
+
+**Claude Code CLI**
+
+```bash
+# All platforms (requires Node 20+)
+npm install -g @anthropic-ai/claude-code
+```
+
+> First time? Run `claude` in terminal to complete login.
+
+**uv** (Python package manager)
 
 ```bash
 # macOS / Linux
@@ -28,227 +44,300 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Windows (PowerShell)
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-# 或 winget install --id=astral-sh.uv -e
 ```
 
-接下来三平台一样：
+> Requires Python 3.12+ and Node 20+.
+
+#### 2. Install mobile-cc
 
 ```bash
+git clone https://github.com/YOUR_USERNAME/mobile-cc.git
 cd mobile-cc
 uv sync
 cd web && npm install && npm run build && cd ..
-
-# 复制并编辑配置：填 allowed_dirs
-cp config.example.toml config.toml      # Windows PowerShell: copy config.example.toml config.toml
 ```
 
-`allowed_dirs` 列表里每一项都会出现在「新建会话」的目录下拉里，claude 启动时 cwd 就是你选的那个目录。**用户不能在 web 上自由填路径，只能从这个白名单里选**。
-
-首次启动会在项目根生成 `.api-key` 并把它打印到终端——这串就是浏览器登录用的密钥。
-
----
-
-## A. 仅本地
+#### 3. Configure
 
 ```bash
-uv run python -m mobile_cc --port 8788 --host 127.0.0.1
+cp config.example.toml config.toml
 ```
 
-浏览器开 `http://127.0.0.1:8788`，输 API key，开聊。
-
----
-
-## B. Cloudflare Tunnel（没有公网 IP）
-
-绝大多数家庭宽带 / 国内手机网络没有真公网 IPv4。[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) 是反向隧道：你的电脑出站连 Cloudflare，得到一个 HTTPS URL，手机用任意浏览器访问就行，**手机端不用装 app**，免费档够个人用。
-
-```bash
-# 1) 装 cloudflared
-#    macOS:   brew install cloudflared
-#    Linux:   从 https://github.com/cloudflare/cloudflared/releases 下 .deb / .rpm 装
-#    Windows: winget install --id Cloudflare.cloudflared
-#             或下载 cloudflared-windows-amd64.exe 改名为 cloudflared.exe 放进 PATH
-
-# 2) 启动 mobile-cc（只监听本机，外部由 cloudflared 进来）
-uv run python -m mobile_cc --port 8788 --host 127.0.0.1
-
-# 3) 另开终端，起 tunnel
-cloudflared tunnel --url http://127.0.0.1:8788
-```
-
-终端打出 `https://random-words-xxxx.trycloudflare.com`，**这个 URL 就是手机要访问的地址**，输 API key 登录。
-
-想要稳定的自有域名（不让随机域名每次变）：
-
-```bash
-cloudflared tunnel login                # 浏览器扫码授权
-cloudflared tunnel create mobile-cc
-cloudflared tunnel route dns mobile-cc cc.example.com
-cloudflared tunnel run mobile-cc        # 后续每次启动用这个
-```
-
-担心 URL 泄露？在 Cloudflare 后台开 Zero Trust Access，加一层 Google / GitHub / 邮件 OTP 验证。
-
----
-
-## C. 公网 IP + TLS
-
-只在服务器真的有公网 IP 时用。两种方法二选一：
-
-### C1. Caddy 反代（推荐，自动签 Let's Encrypt）
-
-```bash
-# 0) 装 Caddy
-#    macOS:   brew install caddy
-#    Linux:   apt / yum 安装包：https://caddyserver.com/docs/install
-#    Windows: winget install CaddyServer.Caddy 或下 Windows 二进制
-
-# 1) mobile-cc 只监听本机，被 Caddy 代过来
-uv run python -m mobile_cc --port 8788 --host 127.0.0.1
-
-# 2) Caddyfile（Linux 默认 /etc/caddy/Caddyfile；macOS Homebrew 默认 /opt/homebrew/etc/Caddyfile）
-cc.example.com {
-    reverse_proxy 127.0.0.1:8788 {
-        flush_interval -1   # 关闭缓冲，保证 SSE 实时
-    }
-}
-
-# 3) 重载 Caddy（首次会自动签证书，DNS A 记录要先指过来）
-#    Linux systemd:   sudo systemctl reload caddy
-#    macOS brew:      brew services restart caddy
-#    Windows:         前台跑用 caddy run；服务化看 nssm / Windows Service
-```
-
-手机访问 `https://cc.example.com`。
-
-### C2. mobile-cc 直接挂证书（不想装 Caddy）
-
-主要面向 Linux 服务器。macOS 也可，Windows 上 certbot 不太顺，建议走 C1 或 B。
-
-```bash
-# 1) certbot 拿证书（standalone 模式占用 80）
-#    Linux:  apt install certbot 或 snap install --classic certbot
-#    macOS:  brew install certbot
-sudo certbot certonly --standalone -d cc.example.com
-
-# 2) 启动时挂证书 + 8443（443 要 root，8443 任意用户可绑）
-uv run python -m mobile_cc \
-  --ssl-certfile /etc/letsencrypt/live/cc.example.com/fullchain.pem \
-  --ssl-keyfile  /etc/letsencrypt/live/cc.example.com/privkey.pem \
-  --port 8443
-```
-
-手机访问 `https://cc.example.com:8443`。证书续期记得在 certbot 的 deploy hook 里重启 mobile-cc，uvicorn 不会热加载证书。
-
-### C3. 自签证书（临时调试 / 内网）
-
-需要 `openssl`：macOS / Linux 一般自带；Windows 装 Git for Windows 或 `winget install ShiningLight.OpenSSL` 后 PATH 里就有。
-
-```bash
-mkdir -p certs && cd certs
-openssl req -x509 -newkey rsa:4096 -keyout self.key -out self.crt \
-  -days 365 -nodes -subj "/CN=cc.local"
-cd ..
-uv run python -m mobile_cc --ssl-certfile certs/self.crt --ssl-keyfile certs/self.key
-```
-
-手机会警告「证书不受信任」，点继续访问；至少 API key 不再明文。
-
----
-
-## 配置
-
-`config.toml` 全部字段：
+Edit `config.toml` — add the directories you want Claude to work in:
 
 ```toml
-host = "0.0.0.0"        # bind 地址；本地测试用 127.0.0.1
-port = 8788
+[[allowed_dirs]]
+name = "My Project"
+path = "/path/to/your/project"
+```
 
-# TLS（用法 C2 / C3 才填；走 Caddy 或 Cloudflare 都不用填）
-# ssl_certfile = "/etc/letsencrypt/live/.../fullchain.pem"
-# ssl_keyfile  = "/etc/letsencrypt/live/.../privkey.pem"
+#### 4. Run
+
+```bash
+uv run python -m mobile_cc
+```
+
+Open `http://127.0.0.1:21580` in your browser. The terminal prints an API key on first launch — enter it to log in.
+
+---
+
+### Access from your phone
+
+#### Option A — Same WiFi (LAN)
+
+```bash
+uv run python -m mobile_cc --host 0.0.0.0
+```
+
+Open `http://YOUR_COMPUTER_IP:21580` on your phone. Both devices must be on the same network.
+
+#### Option B — Cloudflare Tunnel (no public IP needed)
+
+```bash
+# Install cloudflared
+#   macOS:   brew install cloudflared
+#   Linux:   download .deb/.rpm from https://github.com/cloudflare/cloudflared/releases
+#   Windows: winget install --id Cloudflare.cloudflared
+
+# Terminal 1: start mobile-cc
+uv run python -m mobile_cc --host 127.0.0.1
+
+# Terminal 2: start tunnel
+cloudflared tunnel --url http://127.0.0.1:21580
+```
+
+You'll get a `https://xxx.trycloudflare.com` URL — open it on your phone. HTTPS built-in.
+
+> Quick tunnel URLs change on restart. For a permanent URL, see [Cloudflare named tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps).
+
+#### Option C — Public IP server
+
+```bash
+uv run python -m mobile_cc --host 0.0.0.0
+```
+
+Open `http://YOUR_SERVER_IP:21580`. Note: this is plain HTTP — only use on trusted networks.
+
+---
+
+### API Key
+
+- Generated on first launch, saved to `.api-key` in the project root
+- Printed to the terminal — copy and paste into the browser
+- To reset: delete `.api-key` and restart
+
+### Permission Modes
+
+| Mode | Behavior |
+|------|----------|
+| **Ask before editing** (default) | Every tool call shows an approval card |
+| **Auto-accept edits** | File edits pass through automatically; Bash still asks |
+| **Plan mode** | Model writes a plan; you approve before execution |
+| **Allow all** | No prompts at all — sandbox use only |
+
+### Configuration
+
+All settings in `config.toml`:
+
+```toml
+host = "0.0.0.0"        # bind address; use 127.0.0.1 for local only
+port = 21580
+
+# claude binary path (auto-detected from PATH if omitted)
+# claude_bin = "/usr/local/bin/claude"
+
+[[allowed_dirs]]
+name = "My Project"
+path = "/path/to/your/project"
+```
+
+### TODO
+
+- [ ] Web support for `/compact` — compress context from web UI
+- [ ] Web support for `/model` — switch model from web UI
+- [ ] Web support for `/cost` — show token usage per session
+- [ ] Web support for `/context` — show context window usage
+- [ ] Key rotation UI
+- [ ] Multi-user support
+- [ ] Audit logging
+
+### Development
+
+```bash
+# Terminal 1: backend with hot reload
+uv run python -m mobile_cc --host 127.0.0.1 --reload
+
+# Terminal 2: frontend with Vite HMR
+cd web && npm run dev
+# Open http://localhost:5173 — API calls are proxied to the backend
+```
+
+---
+
+<a id="中文"></a>
+
+## 在手机上用 Claude Code
+
+**躺在床上发号施令，让 Claude Code 变成你的 OpenClaw。**
+
+mobile-cc 给 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 命令行套了一个手机友好的网页界面。电脑上跑，手机浏览器打开就能用，不用装 app。躺平，点点，交付。
+
+### 亮点
+
+- **手机上完整体验 Claude Code** — 终端里能做的，手机上都能做
+- **实时流式输出** — 基于 SSE，边生成边显示
+- **权限审批** — 工具调用一键允许/拒绝
+- **历史会话** — 自动读取 Claude Code 原有会话记录
+- **文件预览** — 点击文件路径直接查看内容
+- **`/` 和 `@` 补全** — `/` 联想 skills，`@` 联想工作目录文件
+- **中英双语界面** — 侧边栏一键切换
+- **零外部依赖** — 会话存在 `~/.claude/` 里，不需要数据库
+
+### 快速开始
+
+#### 1. 安装前置依赖
+
+**Claude Code CLI**
+
+```bash
+# 所有平台（需要 Node 20+）
+npm install -g @anthropic-ai/claude-code
+```
+
+> 首次使用？在终端运行 `claude` 完成登录。
+
+**uv**（Python 包管理器）
+
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+> 需要 Python 3.12+ 和 Node 20+。
+
+#### 2. 安装 mobile-cc
+
+```bash
+git clone https://github.com/YOUR_USERNAME/mobile-cc.git
+cd mobile-cc
+uv sync
+cd web && npm install && npm run build && cd ..
+```
+
+#### 3. 配置
+
+```bash
+cp config.example.toml config.toml
+```
+
+编辑 `config.toml`，填上你想让 Claude 工作的目录：
+
+```toml
+[[allowed_dirs]]
+name = "我的项目"
+path = "/path/to/your/project"
+```
+
+#### 4. 启动
+
+```bash
+uv run python -m mobile_cc
+```
+
+浏览器打开 `http://127.0.0.1:21580`。首次启动终端会打印 API key，输入即可登录。
+
+---
+
+### 手机访问
+
+#### 方式 A — 局域网（同一 WiFi）
+
+```bash
+uv run python -m mobile_cc --host 0.0.0.0
+```
+
+手机浏览器打开 `http://电脑IP:21580`，电脑和手机需在同一网络。
+
+#### 方式 B — Cloudflare Tunnel（没有公网 IP）
+
+```bash
+# 安装 cloudflared
+#   macOS:   brew install cloudflared
+#   Linux:   从 https://github.com/cloudflare/cloudflared/releases 下载 .deb/.rpm
+#   Windows: winget install --id Cloudflare.cloudflared
+
+# 终端 1：启动 mobile-cc
+uv run python -m mobile_cc --host 127.0.0.1
+
+# 终端 2：启动隧道
+cloudflared tunnel --url http://127.0.0.1:21580
+```
+
+终端会显示一个 `https://xxx.trycloudflare.com` 地址，手机打开即可。自带 HTTPS。
+
+> Quick tunnel 每次重启 URL 会变。想要固定域名，参考 [Cloudflare named tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps)。
+
+#### 方式 C — 公网 IP 服务器
+
+```bash
+uv run python -m mobile_cc --host 0.0.0.0
+```
+
+手机打开 `http://服务器IP:21580`。注意：这是明文 HTTP，仅适合可信内网。
+
+---
+
+### API Key
+
+- 首次启动自动生成，保存在项目根目录的 `.api-key` 文件
+- 同时打印到终端 — 复制粘贴到浏览器即可
+- 想换新的：删除 `.api-key` 文件，重启服务
+
+### 权限模式
+
+| 模式 | 行为 |
+|------|------|
+| **编辑前先问**（默认） | 每次工具调用弹卡片让你审批 |
+| **自动接受编辑** | 文件编辑自动放行；Bash 等仍弹确认 |
+| **计划模式** | 模型先写计划，你批准后才执行 |
+| **全部允许** | 不弹任何确认 — 仅限沙箱环境 |
+
+### 配置
+
+所有设置在 `config.toml` 中：
+
+```toml
+host = "0.0.0.0"        # 监听地址；仅本地用 127.0.0.1
+port = 21580
 
 # claude 可执行路径（默认从 PATH 自动找）
 # claude_bin = "/usr/local/bin/claude"
 
-# 「新建会话」下拉里出现的工作目录列表
 [[allowed_dirs]]
-name = "项目甲"
-path = "/path/to/repo"
-
-[[allowed_dirs]]
-name = "项目乙"
-path = "/another/path"
+name = "我的项目"
+path = "/path/to/your/project"
 ```
 
-命令行参数会覆盖配置：`--host` `--port` `--ssl-certfile` `--ssl-keyfile`。
+### TODO
 
-## 权限模式
+- [ ] Web 端支持 `/compact` — 从网页压缩上下文
+- [ ] Web 端支持 `/model` — 从网页切换模型
+- [ ] Web 端支持 `/cost` — 显示每会话 token 用量
+- [ ] Web 端支持 `/context` — 显示上下文窗口用量
+- [ ] API Key 轮换 UI
+- [ ] 多用户支持
+- [ ] 审计日志
 
-每条消息发送前，composer 右下角的 chip 决定本次的权限模式（也持久化为会话默认）：
-
-| 模式 | 行为 |
-|---|---|
-| **编辑前先问**（default） | 每次工具调用弹卡片让你 allow / 允许本会话 / 拒绝 / 打断 |
-| **自动接受编辑**（acceptEdits） | Edit / Write / MultiEdit / NotebookEdit 自动放行；Bash 等仍弹 |
-| **计划模式**（plan） | 模型只能写计划文件，调 ExitPlanMode 后弹「批准 / 继续规划」卡片 |
-| **全部允许**（bypassPermissions） | 等同 `--dangerously-skip-permissions`，所有工具不询问。仅自己沙箱用 |
-
-特殊处理：`AskUserQuestion` 永远弹问答卡片；`ExitPlanMode` 永远弹计划审批；`TodoWrite` / `TaskStop` / `EnterPlanMode` / `TaskOutput` / `CronList` 自动放行不打扰。
-
-## 安全约束（已经在代码里）
-
-- API key 文件 chmod 600，只有当前用户可读
-- `secrets.compare_digest` 等时比较，防侧信道
-- 失败鉴权 rate-limit：单 IP 60 秒内 20 次错就 429
-- `X-API-Key` 走 header 而不是 query，不进 access log URL 字段
-- 文件预览路径在 working_dir 边界内，`../../../etc/passwd` 403
-- 新会话只能从 `allowed_dirs` 白名单挑目录
-
-没做的：key 轮换 UI（换 key 就 `rm .api-key && 重启`）、多用户、审计日志落盘、工具沙箱（claude 的 Bash 拿到的就是当前 uid 的全部权限）。
-
-## 开发模式
+### 开发模式
 
 ```bash
 # 终端 1：后端 hot reload
-uv run python -m mobile_cc --port 8788 --host 127.0.0.1 --reload
+uv run python -m mobile_cc --host 127.0.0.1 --reload
 
 # 终端 2：前端 Vite HMR
 cd web && npm run dev
-# 浏览器 http://localhost:5173 — Vite 把 /api/* 反代到 8788
+# 浏览器 http://localhost:5173 — API 请求自动代理到后端
 ```
-
-## 项目结构
-
-```
-mobile-cc/
-├── src/mobile_cc/
-│   ├── server.py          # FastAPI app 工厂
-│   ├── auth.py            # API key 中间件 + 失败 rate-limit
-│   ├── config.py          # config.toml 解析（host/port/tls/allowed_dirs）
-│   ├── claude_proc.py     # claude 子进程 + NDJSON ↔ 前端 SSE 翻译
-│   ├── permissions.py     # 权限 broker：pending + 会话 allowlist + 自动放行
-│   ├── sessions.py        # 直接读 ~/.claude/projects/<slug>/<uuid>.jsonl
-│   ├── completions.py     # / 联想（claude init 探测）+ @ 联想（os.walk）
-│   └── routes/            # FastAPI 路由
-├── scripts/
-│   └── permission-hook.py # claude PreToolUse 钩子：POST + long-poll
-└── web/
-    └── src/               # React 19 + Vite + Tailwind v4 + react-markdown
-```
-
-会话数据不另存。Claude Code 自己写在 `~/.claude/projects/<cwd-slug>/<uuid>.jsonl`，本项目读写都基于这个。
-
-## 端到端验证
-
-启动后：
-
-1. `curl http://127.0.0.1:8788/api/health` → `{"ok": true}`
-2. 浏览器输 API key 进主界面
-3. 新建会话 → 选目录与权限模式 → 发「你好」→ 看到 markdown 流式打字
-4. 输入 `/` → 弹 slash + skill 列表
-5. 输入 `@` → 弹工作目录文件列表
-6. 让 claude 编辑文件 → tool_use 卡片渲染成 unified diff
-7. 在文件路径上点击 → FileViewer 打开预览
-8. 刷新页面 → 历史会话仍在左侧
-9. 故意输错 API key 多次 → 第 21 次起 429 一分钟

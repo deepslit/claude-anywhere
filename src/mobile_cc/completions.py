@@ -30,7 +30,15 @@ class SlashCache:
     agents: list[str]
 
 
-_DEFAULT_BUILTIN = ("clear", "compact", "context", "help", "init")
+_DEFAULT_BUILTIN = ("clear",)
+
+# Commands that don't work in web mode (sent as plain text to the model,
+# not intercepted by the CLI in `-p stream-json` mode).
+_WEB_UNSUPPORTED = frozenset({
+    "compact", "context", "help", "init",
+    "model", "cost", "permissions", "doctor",
+    "config", "terminal-setup", "status-bar",
+})
 
 
 async def probe_init(claude_bin: str, working_dir: Path) -> SlashCache:
@@ -100,8 +108,12 @@ async def probe_init(claude_bin: str, working_dir: Path) -> SlashCache:
 
     if evt is None:
         return SlashCache(list(_DEFAULT_BUILTIN), [], [])
+    raw_commands = evt.get("slash_commands") or []
+    filtered = [c for c in raw_commands if c not in _WEB_UNSUPPORTED]
+    if not filtered:
+        filtered = list(_DEFAULT_BUILTIN)
     return SlashCache(
-        slash_commands=list(evt.get("slash_commands") or _DEFAULT_BUILTIN),
+        slash_commands=filtered,
         skills=list(evt.get("skills") or []),
         agents=list(evt.get("agents") or []),
     )
