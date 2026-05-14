@@ -247,10 +247,10 @@ async def run_turn(
         # set; the user explicitly opted in by picking this mode.
         env.setdefault("IS_SANDBOX", "1")
     if install_hook:
-        env["MOBILE_CC_BACKEND"] = backend_url
-        env["MOBILE_CC_API_KEY"] = api_key
-        env["MOBILE_CC_SESSION_ID"] = session_id
-        env["MOBILE_CC_PERM_MODE"] = permission_mode
+        env["CLAUDE_ANYWHERE_BACKEND"] = backend_url
+        env["CLAUDE_ANYWHERE_API_KEY"] = api_key
+        env["CLAUDE_ANYWHERE_SESSION_ID"] = session_id
+        env["CLAUDE_ANYWHERE_PERM_MODE"] = permission_mode
 
     proc = await asyncio.create_subprocess_exec(
         *argv,

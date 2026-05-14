@@ -9,7 +9,7 @@ from .server import create_app
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="mobile-cc")
+    parser = argparse.ArgumentParser(prog="claude-anywhere")
     parser.add_argument("--host", help="bind host (overrides config)")
     parser.add_argument("--port", type=int, help="bind port (overrides config)")
     parser.add_argument(
@@ -39,7 +39,7 @@ def main() -> None:
     use_tls = bool(ssl_certfile and ssl_keyfile)
     scheme = "https" if use_tls else "http"
 
-    print(f"📡 mobile-cc listening on {scheme}://{host}:{port}")
+    print(f"📡 claude-anywhere listening on {scheme}://{host}:{port}")
     print(f"   working dirs available: {', '.join(d.name for d in cfg.allowed_dirs)}")
     if host not in ("127.0.0.1", "localhost", "::1") and not use_tls:
         print()
@@ -49,7 +49,7 @@ def main() -> None:
         print("    Security has copy-pasteable recipes.")
 
     uvicorn.run(
-        app if not args.reload else "mobile_cc.server:create_app",
+        app if not args.reload else "claude_anywhere.server:create_app",
         host=host,
         port=port,
         reload=args.reload,

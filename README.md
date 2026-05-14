@@ -74,7 +74,7 @@ path = "/path/to/your/project"
 #### 4. Run
 
 ```bash
-uv run python -m mobile_cc
+uv run python -m claude_anywhere
 ```
 
 Open `http://127.0.0.1:21580` in your browser. The terminal prints an API key on first launch — enter it to log in.
@@ -86,7 +86,7 @@ Open `http://127.0.0.1:21580` in your browser. The terminal prints an API key on
 #### Option A — Same WiFi (LAN)
 
 ```bash
-uv run python -m mobile_cc --host 0.0.0.0
+uv run python -m claude_anywhere --host 0.0.0.0
 ```
 
 Open `http://YOUR_COMPUTER_IP:21580` on your phone. Both devices must be on the same network.
@@ -100,7 +100,7 @@ Open `http://YOUR_COMPUTER_IP:21580` on your phone. Both devices must be on the 
 #   Windows: winget install --id Cloudflare.cloudflared
 
 # Terminal 1: start Claude Anywhere
-uv run python -m mobile_cc --host 127.0.0.1
+uv run python -m claude_anywhere --host 127.0.0.1
 
 # Terminal 2: start tunnel
 cloudflared tunnel --url http://127.0.0.1:21580
@@ -113,7 +113,7 @@ You'll get a `https://xxx.trycloudflare.com` URL — open it on your phone. HTTP
 #### Option C — Public IP server
 
 ```bash
-uv run python -m mobile_cc --host 0.0.0.0
+uv run python -m claude_anywhere --host 0.0.0.0
 ```
 
 Open `http://YOUR_SERVER_IP:21580`. Note: this is plain HTTP — only use on trusted networks.
@@ -165,7 +165,7 @@ path = "/path/to/your/project"
 
 ```bash
 # Terminal 1: backend with hot reload
-uv run python -m mobile_cc --host 127.0.0.1 --reload
+uv run python -m claude_anywhere --host 127.0.0.1 --reload
 
 # Terminal 2: frontend with Vite HMR
 cd web && npm run dev
@@ -244,7 +244,7 @@ path = "/path/to/your/project"
 #### 4. 启动
 
 ```bash
-uv run python -m mobile_cc
+uv run python -m claude_anywhere
 ```
 
 浏览器打开 `http://127.0.0.1:21580`。首次启动终端会打印 API key，输入即可登录。
@@ -256,7 +256,7 @@ uv run python -m mobile_cc
 #### 方式 A — 局域网（同一 WiFi）
 
 ```bash
-uv run python -m mobile_cc --host 0.0.0.0
+uv run python -m claude_anywhere --host 0.0.0.0
 ```
 
 手机浏览器打开 `http://电脑IP:21580`，电脑和手机需在同一网络。
@@ -270,7 +270,7 @@ uv run python -m mobile_cc --host 0.0.0.0
 #   Windows: winget install --id Cloudflare.cloudflared
 
 # 终端 1：启动 Claude Anywhere
-uv run python -m mobile_cc --host 127.0.0.1
+uv run python -m claude_anywhere --host 127.0.0.1
 
 # 终端 2：启动隧道
 cloudflared tunnel --url http://127.0.0.1:21580
@@ -283,7 +283,7 @@ cloudflared tunnel --url http://127.0.0.1:21580
 #### 方式 C — 公网 IP 服务器
 
 ```bash
-uv run python -m mobile_cc --host 0.0.0.0
+uv run python -m claude_anywhere --host 0.0.0.0
 ```
 
 手机打开 `http://服务器IP:21580`。注意：这是明文 HTTP，仅适合可信内网。
@@ -335,7 +335,7 @@ path = "/path/to/your/project"
 
 ```bash
 # 终端 1：后端 hot reload
-uv run python -m mobile_cc --host 127.0.0.1 --reload
+uv run python -m claude_anywhere --host 127.0.0.1 --reload
 
 # 终端 2：前端 Vite HMR
 cd web && npm run dev

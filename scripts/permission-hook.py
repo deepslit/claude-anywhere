@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""mobile-cc PreToolUse hook.
+"""claude-anywhere PreToolUse hook.
 
 Claude Code spawns this script before every tool call (when configured via
-``--settings``). It reads the tool payload from stdin, asks the mobile-cc
+``--settings``). It reads the tool payload from stdin, asks the claude-anywhere
 backend whether to allow the call, and emits a hook JSON response that CC
 honours as the permission decision.
 
@@ -12,10 +12,10 @@ Exit / output contract (CC PreToolUse):
 * exit 0 always (we never want CC to abort the run).
 
 Env vars set by the spawning Python backend:
-* MOBILE_CC_BACKEND: e.g. ``http://127.0.0.1:21580``
-* MOBILE_CC_API_KEY: the X-API-Key the backend trusts
-* MOBILE_CC_SESSION_ID: which session this turn belongs to
-* MOBILE_CC_PERM_MODE: ``default``|``acceptEdits`` (we don't run for bypass)
+* CLAUDE_ANYWHERE_BACKEND: e.g. ``http://127.0.0.1:21580``
+* CLAUDE_ANYWHERE_API_KEY: the X-API-Key the backend trusts
+* CLAUDE_ANYWHERE_SESSION_ID: which session this turn belongs to
+* CLAUDE_ANYWHERE_PERM_MODE: ``default``|``acceptEdits`` (we don't run for bypass)
 """
 
 from __future__ import annotations
@@ -50,10 +50,10 @@ def _emit(decision: str, reason: str | None = None) -> None:
 
 
 def main() -> int:
-    backend = os.environ.get("MOBILE_CC_BACKEND")
-    api_key = os.environ.get("MOBILE_CC_API_KEY")
-    session_id = os.environ.get("MOBILE_CC_SESSION_ID")
-    perm_mode = os.environ.get("MOBILE_CC_PERM_MODE", "default")
+    backend = os.environ.get("CLAUDE_ANYWHERE_BACKEND")
+    api_key = os.environ.get("CLAUDE_ANYWHERE_API_KEY")
+    session_id = os.environ.get("CLAUDE_ANYWHERE_SESSION_ID")
+    perm_mode = os.environ.get("CLAUDE_ANYWHERE_PERM_MODE", "default")
 
     if not (backend and api_key and session_id):
         # Hook ran outside our context — let CC fall back to its native rules.
@@ -89,7 +89,7 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         _emit(
             "deny",
-            f"mobile-cc: failed to reach permission backend: {exc}",
+            f"claude-anywhere: failed to reach permission backend: {exc}",
         )
         return 0
 
@@ -105,7 +105,7 @@ def main() -> int:
         except urllib.error.HTTPError as e:
             if e.code in (408, 504):
                 continue  # server-side timeout, retry
-            _emit("deny", f"mobile-cc: HTTP {e.code} from backend")
+            _emit("deny", f"claude-anywhere: HTTP {e.code} from backend")
             return 0
         except Exception:
             time.sleep(1)
@@ -117,7 +117,7 @@ def main() -> int:
             _emit(decision, reason or "The user declined this tool call without further feedback.")
             return 0
 
-    _emit("deny", "mobile-cc: approval timed out")
+    _emit("deny", "claude-anywhere: approval timed out")
     return 0
 
 

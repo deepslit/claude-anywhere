@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const KEY_STORAGE = "mobile_cc_api_key";
+const KEY_STORAGE = "claude_anywhere_api_key";
 
 export function useApiKey() {
   const [key, setKeyState] = useState<string | null>(() => {

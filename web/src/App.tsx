@@ -270,9 +270,23 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
           return { items: newItems, openByIndex };
         }
         case "permission_request": {
+          // Remove the oldest unpaired tool_use item for this tool — the
+          // permission card already shows all the info. We match FIFO
+          // because permission requests arrive in the same order as the
+          // underlying tool_use_start events.
+          let filtered = items;
+          for (let i = 0; i < items.length; i++) {
+            if (
+              items[i].kind === "tool_use" &&
+              (items[i] as { name?: string }).name === evt.tool_name
+            ) {
+              filtered = [...items.slice(0, i), ...items.slice(i + 1)];
+              break;
+            }
+          }
           return {
             items: [
-              ...items,
+              ...filtered,
               {
                 id: makeId(),
                 kind: "permission_request",
@@ -523,35 +537,31 @@ function Chat({ apiKey, onLogout }: ChatProps) {
     return () => obs.disconnect();
   }, [firstIdx, loadOlder]);
 
-  // Drives an async iterable of StreamEnvelopes into the reducer. Returns
-  // gracefully on abort (resume will be tried elsewhere) and only flips the
-  // "sending" / "turn active" flags off when we see a true terminator
-  // (`done` or `error`).
+  // Drives an async iterable of StreamEnvelopes into the reducer.
+  // Resets UI state when the stream ends for any reason EXCEPT an AbortError
+  // (which means the user started a new message or the tab was backgrounded —
+  // a fresh stream will take over). This ensures Stop / Interrupt always
+  // unblock the input, even when the server process exits without emitting a
+  // `done` event (e.g. after cancellation or an unexpected crash).
   const consumeStream = useCallback(
     async (gen: AsyncGenerator<StreamEnvelope>) => {
-      let terminated = false;
+      let wasAborted = false;
       try {
         for await (const { id, event } of gen) {
           lastEventIdRef.current = id;
           dispatch({ kind: "stream", evt: event });
-          if (event.type === "done" || event.type === "error") {
-            terminated = true;
-          }
         }
       } catch (e) {
-        if ((e as DOMException).name !== "AbortError") {
-          // 404 on resume usually means "no active turn" — treat as benign,
-          // we'll just stop trying.
-          if (e instanceof ApiError && e.status === 404) {
-            terminated = true;
-          } else {
-            setErrorMsg(t("err.chat", { msg: (e as Error).message }));
-            terminated = true;
-          }
+        if ((e as DOMException).name === "AbortError") {
+          wasAborted = true;
+        } else if (e instanceof ApiError && e.status === 404) {
+          // benign — no active turn to resume
+        } else {
+          setErrorMsg(t("err.chat", { msg: (e as Error).message }));
         }
       } finally {
         streamCtrlRef.current = null;
-        if (terminated) {
+        if (!wasAborted) {
           turnActiveRef.current = false;
           setSending(false);
           dispatch({ kind: "expire_pending" });

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 export type Locale = "en" | "zh";
 
-const STORAGE_KEY = "mobile_cc_lang";
+const STORAGE_KEY = "claude_anywhere_lang";
 
 type Dict = Record<string, string>;
 

@@ -30,7 +30,7 @@ def create_app(project_root: Path | None = None) -> FastAPI:
     broker.attach_sessions(registry)
     turns = TurnManager()
 
-    app = FastAPI(title="mobile-cc", version="0.1.0")
+    app = FastAPI(title="claude-anywhere", version="0.1.0")
     app.state.config = config
     app.state.api_key = api_key
     app.state.sessions = registry
@@ -66,7 +66,7 @@ def create_app(project_root: Path | None = None) -> FastAPI:
         @app.get("/")
         def root() -> dict:
             return {
-                "message": "mobile-cc backend running. Frontend build not found at "
+                "message": "claude-anywhere backend running. Frontend build not found at "
                 f"{web_dist}. Run `npm run build` in web/ or use `npm run dev`.",
             }
 
