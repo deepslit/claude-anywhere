@@ -1,4 +1,4 @@
-# mobile-cc
+# Claude Anywhere
 
 [English](#english) · [中文](#中文)
 
@@ -10,9 +10,9 @@
 
 **Turn Claude Code into an OpenClaw — it works while you lounge in bed.**
 
-mobile-cc wraps the [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI in a mobile-friendly web UI. Run it on your computer, access it from any browser — no app install needed. Lie back, tap, ship.
+Claude Anywhere wraps the [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI in a mobile-friendly web UI. Run it on your computer, access it from any browser — no app install needed. Lie back, tap, ship.
 
-### Why mobile-cc?
+### Why Claude Anywhere?
 
 - **Full Claude Code on mobile** — everything you can do in the terminal, now on your phone
 - **Real-time streaming** — SSE-based, see responses as they're generated
@@ -48,11 +48,11 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 > Requires Python 3.12+ and Node 20+.
 
-#### 2. Install mobile-cc
+#### 2. Install Claude Anywhere
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/mobile-cc.git
-cd mobile-cc
+git clone https://github.com/deepslit/claude-anywhere.git
+cd claude-anywhere
 uv sync
 cd web && npm install && npm run build && cd ..
 ```
@@ -99,7 +99,7 @@ Open `http://YOUR_COMPUTER_IP:21580` on your phone. Both devices must be on the 
 #   Linux:   download .deb/.rpm from https://github.com/cloudflare/cloudflared/releases
 #   Windows: winget install --id Cloudflare.cloudflared
 
-# Terminal 1: start mobile-cc
+# Terminal 1: start Claude Anywhere
 uv run python -m mobile_cc --host 127.0.0.1
 
 # Terminal 2: start tunnel
@@ -180,7 +180,7 @@ cd web && npm run dev
 
 **躺在床上发号施令，让 Claude Code 变成你的 OpenClaw。**
 
-mobile-cc 给 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 命令行套了一个手机友好的网页界面。电脑上跑，手机浏览器打开就能用，不用装 app。躺平，点点，交付。
+Claude Anywhere 给 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 命令行套了一个手机友好的网页界面。电脑上跑，手机浏览器打开就能用，不用装 app。躺平，点点，交付。
 
 ### 亮点
 
@@ -218,11 +218,11 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 > 需要 Python 3.12+ 和 Node 20+。
 
-#### 2. 安装 mobile-cc
+#### 2. 安装 Claude Anywhere
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/mobile-cc.git
-cd mobile-cc
+git clone https://github.com/deepslit/claude-anywhere.git
+cd claude-anywhere
 uv sync
 cd web && npm install && npm run build && cd ..
 ```
@@ -269,7 +269,7 @@ uv run python -m mobile_cc --host 0.0.0.0
 #   Linux:   从 https://github.com/cloudflare/cloudflared/releases 下载 .deb/.rpm
 #   Windows: winget install --id Cloudflare.cloudflared
 
-# 终端 1：启动 mobile-cc
+# 终端 1：启动 Claude Anywhere
 uv run python -m mobile_cc --host 127.0.0.1
 
 # 终端 2：启动隧道
