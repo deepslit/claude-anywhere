@@ -72,12 +72,11 @@ def get_session(request: Request, session_id: str) -> dict:
     except KeyError:
         raise HTTPException(status_code=404, detail="session not found")
 
-    transcript = _read_transcript(meta.working_dir, session_id)
-
     # Expose whether a turn is currently running (or recently finished) so
     # the client can decide whether to subscribe via GET /messages?since=N.
     manager = getattr(request.app.state, "turns", None)
     active_turn = None
+    has_live_runner = False
     if manager is not None:
         runner = manager.get(session_id)
         if runner is not None:
@@ -87,6 +86,18 @@ def get_session(request: Request, session_id: str) -> dict:
                 "cancelled": runner.cancelled,
                 "last_event_id": runner.last_event_id,
             }
+            has_live_runner = not runner.done
+
+    # When an active TurnRunner exists, SSE resume will deliver the
+    # in-flight turn's events.  In that case _read_transcript should
+    # only emit completed-turn history + the user message that started
+    # the in-flight turn (SSE never sends plain user text).  When no
+    # runner exists we include everything so completed sessions render
+    # fully even without SSE.
+    transcript = _read_transcript(
+        meta.working_dir, session_id,
+        skip_in_flight=has_live_runner,
+    )
 
     return {
         "id": meta.id,
@@ -98,14 +109,24 @@ def get_session(request: Request, session_id: str) -> dict:
     }
 
 
-def _read_transcript(working_dir: Path, session_id: str) -> list[dict]:
-    """Stream the JSONL transcript and re-emit events in the same shape used
-    by the live SSE stream so the frontend can use a single renderer.
+def _read_transcript(
+    working_dir: Path,
+    session_id: str,
+    *,
+    skip_in_flight: bool = False,
+) -> list[dict]:
+    """Read the JSONL transcript and emit events in the same shape used by the
+    live SSE stream so the frontend can use a single renderer.
 
-    IMPORTANT: ``assistant`` events that belong to the current in-flight turn
-    are skipped.  The live SSE stream already delivers those via deltas, so
-    including them here would cause every message to appear twice on the
-    timeline when ``openSession`` loads history *and* resumes the active turn.
+    ``skip_in_flight`` controls how events after the last completed turn are
+    handled:
+
+    * **False** (default): emit everything.  Used when there is no active
+      TurnRunner — the JSONL is the sole source of truth.
+    * **True**: only emit plain user-message text for the in-flight turn.
+      Everything else (assistant text, tool_use, tool_result) is delivered
+      live by the SSE resume stream, so including it here would duplicate
+      every item on the timeline.
     """
     from ..claude_proc import slug_for, CLAUDE_PROJECTS, _translate
     import json
@@ -114,7 +135,6 @@ def _read_transcript(working_dir: Path, session_id: str) -> list[dict]:
     if not path.exists():
         return []
 
-    # Read every line first so we can locate the last completed turn.
     lines: list[dict] = []
     with path.open(encoding="utf-8") as f:
         for raw in f:
@@ -128,25 +148,54 @@ def _read_transcript(working_dir: Path, session_id: str) -> list[dict]:
             lines.append(evt)
 
     # The last ``result`` event marks the end of a completed turn.
-    # Any ``assistant`` events after it belong to an ongoing turn whose
-    # content is already streamed live.
     last_result_idx = -1
     for i in range(len(lines) - 1, -1, -1):
         if lines[i].get("type") == "result":
             last_result_idx = i
             break
 
+    # Tools whose tool_use block is replaced by a permission_request card in
+    # real-time.  In history there is no permission_request event, so the raw
+    # tool_use JSON is meaningless clutter — the answer/decision is already
+    # captured by the subsequent tool_result.
+    _INTERACTIVE_TOOLS = frozenset({"AskUserQuestion", "ExitPlanMode"})
+
+    def _user_text_only(content: object) -> str | None:
+        """Extract plain text from a user event, ignoring tool_result blocks."""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts: list[str] = []
+            for blk in content:
+                if isinstance(blk, dict) and blk.get("type") == "text":
+                    parts.append(str(blk.get("text", "")))
+            return "\n".join(parts) if parts else None
+        return None
+
     out: list[dict] = []
     for i, evt in enumerate(lines):
         t = evt.get("type")
+        is_in_flight = last_result_idx == -1 or i > last_result_idx
+
+        # ── in-flight turn (SSE will deliver these) ────────────────────
+        if is_in_flight and skip_in_flight:
+            # SSE never sends plain user text — keep that so the timeline
+            # shows what the user typed.  Drop everything else.
+            if t == "user":
+                text = _user_text_only((evt.get("message") or {}).get("content"))
+                if text:
+                    out.append({"type": "user_message", "text": text})
+            continue
+
+        # ── completed turns (or full read when no SSE) ─────────────────
         if t == "user":
             msg = evt.get("message") or {}
             content = msg.get("content")
             if isinstance(content, str):
                 out.append({"type": "user_message", "text": content})
             elif isinstance(content, list):
-                text_parts = []
-                tool_results = []
+                text_parts: list[str] = []
+                tool_results: list[dict] = []
                 for blk in content:
                     if not isinstance(blk, dict):
                         continue
@@ -163,11 +212,6 @@ def _read_transcript(working_dir: Path, session_id: str) -> list[dict]:
                 if tool_results:
                     out.append({"type": "tool_result", "results": tool_results})
         elif t == "assistant":
-            # Skip assistant events that belong to the current in-flight turn.
-            # Any assistant after the last ``result`` is part of an ongoing
-            # turn whose deltas are already streamed live.
-            if last_result_idx == -1 or i > last_result_idx:
-                continue
             msg = evt.get("message") or {}
             for blk in msg.get("content", []) or []:
                 if not isinstance(blk, dict):
@@ -178,10 +222,16 @@ def _read_transcript(working_dir: Path, session_id: str) -> list[dict]:
                 elif btype == "thinking":
                     out.append({"type": "assistant_thinking", "text": blk.get("thinking", "")})
                 elif btype == "tool_use":
+                    name = blk.get("name", "")
+                    # Interactive tools are rendered as permission_request
+                    # cards in real-time; in history only the tool_result
+                    # answer matters, so skip the raw tool_use block.
+                    if name in _INTERACTIVE_TOOLS:
+                        continue
                     out.append({
                         "type": "tool_use",
                         "id": blk.get("id"),
-                        "name": blk.get("name"),
+                        "name": name,
                         "input": blk.get("input"),
                     })
         elif t == "result":

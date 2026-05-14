@@ -270,6 +270,17 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
           return { items: newItems, openByIndex };
         }
         case "permission_request": {
+          // Deduplicate: if we already have a card for this request_id
+          // (e.g. due to a stream resume replaying events), skip it.
+          if (
+            items.some(
+              (it) =>
+                it.kind === "permission_request" &&
+                (it as { requestId?: string }).requestId === evt.request_id,
+            )
+          ) {
+            return state;
+          }
           // Remove the oldest unpaired tool_use item for this tool — the
           // permission card already shows all the info. We match FIFO
           // because permission requests arrive in the same order as the
@@ -545,6 +556,10 @@ function Chat({ apiKey, onLogout }: ChatProps) {
   // `done` event (e.g. after cancellation or an unexpected crash).
   const consumeStream = useCallback(
     async (gen: AsyncGenerator<StreamEnvelope>) => {
+      // Snapshot the controller so the finally block can check whether a
+      // newer stream has taken over (onResume aborts this one and starts a
+      // fresh resume — we must not clear the new controller).
+      const myCtrl = streamCtrlRef.current;
       let wasAborted = false;
       try {
         for await (const { id, event } of gen) {
@@ -560,7 +575,9 @@ function Chat({ apiKey, onLogout }: ChatProps) {
           setErrorMsg(t("err.chat", { msg: (e as Error).message }));
         }
       } finally {
-        streamCtrlRef.current = null;
+        if (streamCtrlRef.current === myCtrl) {
+          streamCtrlRef.current = null;
+        }
         if (!wasAborted) {
           turnActiveRef.current = false;
           setSending(false);
@@ -684,11 +701,16 @@ function Chat({ apiKey, onLogout }: ChatProps) {
   // Mobile Safari closes background fetches aggressively. When the user
   // returns to the tab while we still think a turn is in flight, swap the
   // (likely dead) stream for a fresh resume from the last event id we saw.
+  // IMPORTANT: only react to visibilitychange — focus/pageshow fire too
+  // aggressively and cause a race where the old stream's buffered events
+  // overlap with the new resume, duplicating every item on the timeline.
   useEffect(() => {
     const onResume = () => {
       if (document.visibilityState !== "visible") return;
       if (!turnActiveRef.current || !currentId) return;
-      streamCtrlRef.current?.abort();
+      // If a stream is still active, don't restart — the race between the
+      // old stream's buffered events and the new resume causes duplication.
+      if (streamCtrlRef.current) return;
       const ctrl = new AbortController();
       streamCtrlRef.current = ctrl;
       setSending(true);
@@ -697,12 +719,8 @@ function Chat({ apiKey, onLogout }: ChatProps) {
       );
     };
     document.addEventListener("visibilitychange", onResume);
-    window.addEventListener("pageshow", onResume);
-    window.addEventListener("focus", onResume);
     return () => {
       document.removeEventListener("visibilitychange", onResume);
-      window.removeEventListener("pageshow", onResume);
-      window.removeEventListener("focus", onResume);
     };
   }, [apiKey, currentId, consumeStream]);
 
