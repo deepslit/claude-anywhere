@@ -29,3 +29,6 @@ workspaces/
 .idea/
 .vscode/
 *.swp
+
+# Motion design scratch (source HTML for demo videos)
+vibe-motion/

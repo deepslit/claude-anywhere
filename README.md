@@ -10,6 +10,10 @@
 
 **Turn Claude Code into an OpenClaw — it works while you lounge in bed.**
 
+<p align="center">
+  <img src="docs/demo.gif" alt="Claude Anywhere demo" width="720">
+</p>
+
 Claude Anywhere wraps the [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI in a mobile-friendly web UI. Run it on your computer, access it from any browser — no app install needed. Lie back, tap, ship.
 
 ### Why Claude Anywhere?
@@ -179,6 +183,10 @@ cd web && npm run dev
 ## 在手机上用 Claude Code
 
 **躺在床上发号施令，让 Claude Code 变成你的 OpenClaw。**
+
+<p align="center">
+  <img src="docs/demo.gif" alt="Claude Anywhere 演示" width="720">
+</p>
 
 Claude Anywhere 给 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 命令行套了一个手机友好的网页界面。电脑上跑，手机浏览器打开就能用，不用装 app。躺平，点点，交付。
 
