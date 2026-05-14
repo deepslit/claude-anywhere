@@ -100,7 +100,13 @@ def get_session(request: Request, session_id: str) -> dict:
 
 def _read_transcript(working_dir: Path, session_id: str) -> list[dict]:
     """Stream the JSONL transcript and re-emit events in the same shape used
-    by the live SSE stream so the frontend can use a single renderer."""
+    by the live SSE stream so the frontend can use a single renderer.
+
+    IMPORTANT: ``assistant`` events that belong to the current in-flight turn
+    are skipped.  The live SSE stream already delivers those via deltas, so
+    including them here would cause every message to appear twice on the
+    timeline when ``openSession`` loads history *and* resumes the active turn.
+    """
     from ..claude_proc import slug_for, CLAUDE_PROJECTS, _translate
     import json
 
@@ -108,7 +114,8 @@ def _read_transcript(working_dir: Path, session_id: str) -> list[dict]:
     if not path.exists():
         return []
 
-    out: list[dict] = []
+    # Read every line first so we can locate the last completed turn.
+    lines: list[dict] = []
     with path.open(encoding="utf-8") as f:
         for raw in f:
             raw = raw.strip()
@@ -118,49 +125,67 @@ def _read_transcript(working_dir: Path, session_id: str) -> list[dict]:
                 evt = json.loads(raw)
             except json.JSONDecodeError:
                 continue
-            t = evt.get("type")
-            if t == "user":
-                msg = evt.get("message") or {}
-                content = msg.get("content")
-                if isinstance(content, str):
-                    out.append({"type": "user_message", "text": content})
-                elif isinstance(content, list):
-                    text_parts = []
-                    tool_results = []
-                    for blk in content:
-                        if not isinstance(blk, dict):
-                            continue
-                        if blk.get("type") == "text":
-                            text_parts.append(str(blk.get("text", "")))
-                        elif blk.get("type") == "tool_result":
-                            tool_results.append({
-                                "tool_use_id": blk.get("tool_use_id"),
-                                "is_error": bool(blk.get("is_error")),
-                                "content": blk.get("content"),
-                            })
-                    if text_parts:
-                        out.append({"type": "user_message", "text": "\n".join(text_parts)})
-                    if tool_results:
-                        out.append({"type": "tool_result", "results": tool_results})
-            elif t == "assistant":
-                msg = evt.get("message") or {}
-                for blk in msg.get("content", []) or []:
+            lines.append(evt)
+
+    # The last ``result`` event marks the end of a completed turn.
+    # Any ``assistant`` events after it belong to an ongoing turn whose
+    # content is already streamed live.
+    last_result_idx = -1
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].get("type") == "result":
+            last_result_idx = i
+            break
+
+    out: list[dict] = []
+    for i, evt in enumerate(lines):
+        t = evt.get("type")
+        if t == "user":
+            msg = evt.get("message") or {}
+            content = msg.get("content")
+            if isinstance(content, str):
+                out.append({"type": "user_message", "text": content})
+            elif isinstance(content, list):
+                text_parts = []
+                tool_results = []
+                for blk in content:
                     if not isinstance(blk, dict):
                         continue
-                    btype = blk.get("type")
-                    if btype == "text":
-                        out.append({"type": "assistant_text", "text": blk.get("text", "")})
-                    elif btype == "thinking":
-                        out.append({"type": "assistant_thinking", "text": blk.get("thinking", "")})
-                    elif btype == "tool_use":
-                        out.append({
-                            "type": "tool_use",
-                            "id": blk.get("id"),
-                            "name": blk.get("name"),
-                            "input": blk.get("input"),
+                    if blk.get("type") == "text":
+                        text_parts.append(str(blk.get("text", "")))
+                    elif blk.get("type") == "tool_result":
+                        tool_results.append({
+                            "tool_use_id": blk.get("tool_use_id"),
+                            "is_error": bool(blk.get("is_error")),
+                            "content": blk.get("content"),
                         })
-            elif t == "result":
-                translated = _translate(evt)
-                if translated:
-                    out.append(translated)
+                if text_parts:
+                    out.append({"type": "user_message", "text": "\n".join(text_parts)})
+                if tool_results:
+                    out.append({"type": "tool_result", "results": tool_results})
+        elif t == "assistant":
+            # Skip assistant events that belong to the current in-flight turn.
+            # Any assistant after the last ``result`` is part of an ongoing
+            # turn whose deltas are already streamed live.
+            if last_result_idx == -1 or i > last_result_idx:
+                continue
+            msg = evt.get("message") or {}
+            for blk in msg.get("content", []) or []:
+                if not isinstance(blk, dict):
+                    continue
+                btype = blk.get("type")
+                if btype == "text":
+                    out.append({"type": "assistant_text", "text": blk.get("text", "")})
+                elif btype == "thinking":
+                    out.append({"type": "assistant_thinking", "text": blk.get("thinking", "")})
+                elif btype == "tool_use":
+                    out.append({
+                        "type": "tool_use",
+                        "id": blk.get("id"),
+                        "name": blk.get("name"),
+                        "input": blk.get("input"),
+                    })
+        elif t == "result":
+            translated = _translate(evt)
+            if translated:
+                out.append(translated)
     return out
